@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { ArrowRight, Tag, Leaf } from "lucide-react";
+import { ArrowRight, Tag } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { FormState } from "@/pages/ProductFlow";
@@ -24,7 +24,7 @@ export const CategoriesTab = ({ formState, updateFormState, onComplete }: Catego
       try {
         const { data, error } = await supabase
           .from("product_categories")
-          .select("id, name, description, target_species")
+          .select("id, name, description")
           .eq("is_active", true)
           .order("name");
 
@@ -137,19 +137,6 @@ export const CategoriesTab = ({ formState, updateFormState, onComplete }: Catego
                   <p className="text-sm text-muted-foreground mt-1">
                     {category.description}
                   </p>
-                  {category.target_species && category.target_species.length > 0 && (
-                    <div className="flex gap-1 mt-2">
-                      {category.target_species.map(species => (
-                        <span 
-                          key={species}
-                          className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-primary/10 text-primary"
-                        >
-                          <Leaf className="h-3 w-3 mr-1" />
-                          {species.charAt(0).toUpperCase() + species.slice(1)}
-                        </span>
-                      ))}
-                    </div>
-                  )}
                 </div>
               </div>
             ))}

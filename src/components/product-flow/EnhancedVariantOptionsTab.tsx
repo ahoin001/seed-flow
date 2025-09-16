@@ -351,7 +351,7 @@ export const EnhancedVariantOptionsTab = ({ formState, updateFormState, onComple
     setNewOptionValue({
       value: "",
       display_value: "",
-      numeric_value: optionType.data_type === 'numeric' ? 0 : null
+      numeric_value: null // Will be set based on user input and unit selection
     });
     setNewValueDialogOpen(true);
   };
@@ -382,12 +382,12 @@ export const EnhancedVariantOptionsTab = ({ formState, updateFormState, onComple
         .filter(v => v.unit_id)
         .map(v => {
           const unit = units.find(u => u.id === v.unit_id);
-          return unit ? unit_categories.find(uc => uc.id === unit.unit_category_id)?.name : null;
+          return unit ? unitCategories.find(uc => uc.id === unit.unit_category_id)?.name : null;
         })
         .filter(Boolean);
       
       const newUnitCategory = units.find(u => u.id === newOptionValue.unit_id);
-      const newCategoryName = unit_categories.find(uc => uc.id === newUnitCategory?.unit_category_id)?.name;
+      const newCategoryName = unitCategories.find(uc => uc.id === newUnitCategory?.unit_category_id)?.name;
       
       if (existingUnitCategories.length > 0 && !existingUnitCategories.includes(newCategoryName)) {
         toast({
@@ -806,7 +806,7 @@ export const EnhancedVariantOptionsTab = ({ formState, updateFormState, onComple
                               <div className="text-sm font-medium">{optionValue.display_value}</div>
                               {optionValue.numeric_value && (
                                 <div className="text-xs text-muted-foreground">
-                                  {optionValue.numeric_value}{selectedOptionType.option_type.unit || ''}
+                                  Numeric: {optionValue.numeric_value}
                                 </div>
                               )}
                             </div>
@@ -998,9 +998,10 @@ export const EnhancedVariantOptionsTab = ({ formState, updateFormState, onComple
               </p>
             </div>
 
-            {editingOptionType?.data_type === 'numeric' && (
+            {/* Show numeric input for numeric option types OR when a unit is selected */}
+            {(editingOptionType?.data_type === 'numeric' || newOptionValue.unit_id) && (
               <div>
-                <Label htmlFor="new-numeric-value">Numeric Value</Label>
+                <Label htmlFor="new-numeric-value">Numeric Value (Optional)</Label>
                 <Input
                   id="new-numeric-value"
                   type="number"
@@ -1009,10 +1010,13 @@ export const EnhancedVariantOptionsTab = ({ formState, updateFormState, onComple
                     ...prev, 
                     numeric_value: e.target.value ? parseFloat(e.target.value) : null 
                   }))}
-                  placeholder="20"
+                  placeholder={newOptionValue.unit_id ? "5" : "20"}
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Numeric value for sorting and calculations
+                  {newOptionValue.unit_id 
+                    ? "Numeric value for the unit (e.g., 5 for '5lb')"
+                    : "Numeric value for sorting and calculations"
+                  }
                 </p>
               </div>
             )}
@@ -1058,6 +1062,9 @@ export const EnhancedVariantOptionsTab = ({ formState, updateFormState, onComple
                 <div className="text-sm text-muted-foreground mt-1 space-y-1">
                   <div><strong>Raw Value:</strong> {newOptionValue.value}</div>
                   <div><strong>Display Value:</strong> {newOptionValue.display_value || newOptionValue.value}</div>
+                  {newOptionValue.numeric_value && (
+                    <div><strong>Numeric Value:</strong> {newOptionValue.numeric_value}</div>
+                  )}
                   {newOptionValue.unit_id && (
                     <div><strong>Unit:</strong> {units.find(u => u.id === newOptionValue.unit_id)?.display_name} ({units.find(u => u.id === newOptionValue.unit_id)?.abbreviation})</div>
                   )}
