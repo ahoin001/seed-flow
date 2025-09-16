@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowRight, Plus, Trash2, Settings, Check, Edit, X, Save, AlertTriangle } from "lucide-react";
+import { ArrowRight, Plus, Trash2, Settings, Check, Edit, X, Save, AlertTriangle, Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { FormState } from "@/pages/ProductFlow";
@@ -838,72 +838,34 @@ export const EnhancedVariantOptionsTab = ({ formState, updateFormState, onComple
         </Card>
       )}
 
-      {/* Unit Management Section */}
+      {/* Quick Reference Section */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5" />
-                Unit Management
-              </CardTitle>
-              <CardDescription>
-                Manage unit categories and units for flexible option value support
-              </CardDescription>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setNewUnitCategoryDialogOpen(true)}
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                Add Category
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setNewUnitDialogOpen(true)}
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                Add Unit
-              </Button>
-            </div>
-          </div>
+          <CardTitle className="flex items-center gap-2">
+            <Info className="h-5 w-5" />
+            How This Works
+          </CardTitle>
+          <CardDescription>
+            Flexible option system for pet food products
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {/* Unit Categories */}
-            <div>
-              <Label className="text-sm font-medium">Unit Categories ({unitCategories.length})</Label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
-                {unitCategories.map((category) => (
-                  <div key={category.id} className="p-3 border rounded bg-muted/30">
-                    <div className="font-medium text-sm">{category.name}</div>
-                    <div className="text-xs text-muted-foreground">{category.description}</div>
-                    <div className="text-xs text-muted-foreground">Base: {category.base_unit}</div>
-                  </div>
-                ))}
+          <div className="space-y-3 text-sm">
+            <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+              <div className="font-medium text-blue-900 dark:text-blue-100">💡 Example: Size Options</div>
+              <div className="text-blue-700 dark:text-blue-300 mt-1">
+                • <strong>Product A:</strong> "Size" → "5lb", "10lb", "15lb" (weight units)<br/>
+                • <strong>Product B:</strong> "Size" → "10 Count", "15 Count", "28 Count" (count units)<br/>
+                • <strong>Same option type</strong>, different units per product!
               </div>
             </div>
-
-            {/* Units */}
-            <div>
-              <Label className="text-sm font-medium">Units ({units.length})</Label>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-2">
-                {units.map((unit) => (
-                  <div key={unit.id} className="p-2 border rounded bg-muted/20">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-sm font-medium">{unit.display_name} ({unit.abbreviation})</div>
-                        <div className="text-xs text-muted-foreground">
-                          Factor: {unit.conversion_factor}
-                          {unit.is_base_unit && <Badge variant="secondary" className="ml-1 text-xs">Base</Badge>}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+            
+            <div className="p-3 bg-green-50 dark:bg-green-950/20 rounded-lg">
+              <div className="font-medium text-green-900 dark:text-green-100">✅ Your Workflow</div>
+              <div className="text-green-700 dark:text-green-300 mt-1">
+                1. Select or create option types (Size, Flavor, etc.)<br/>
+                2. Add values with flexible units (5lb, Chicken, etc.)<br/>
+                3. Each product can use different units for the same option!
               </div>
             </div>
           </div>
