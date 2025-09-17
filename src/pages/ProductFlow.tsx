@@ -3,9 +3,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { ArrowRight, Package, Palette, Settings, Tag, MapPin, Check, Leaf, Cog } from "lucide-react";
+import { ArrowRight, Package, Palette, Settings, Tag, MapPin, Check, Leaf, Cog, CheckCircle } from "lucide-react";
 import { NavigationHeader } from "@/components/NavigationHeader";
 import { BrandProductLineTab } from "@/components/product-flow/BrandProductLineTab";
+import { DataValidationTab } from "@/components/product-flow/DataValidationTab";
 import { EnhancedVariantOptionsTab } from "@/components/product-flow/EnhancedVariantOptionsTab";
 import { ProductVariantTab } from "@/components/product-flow/ProductVariantTab";
 import { CategoriesTab } from "@/components/product-flow/CategoriesTab";
@@ -22,10 +23,12 @@ export interface FormState {
   categoryIds: string[];
   completedTabs: string[];
   isNewProductLine?: boolean;
+  optionTypeIds?: string[];
+  normalizedProductData?: any;
 }
 
 const ProductFlow = () => {
-  const [activeTab, setActiveTab] = useState("brand-product-line");
+  const [activeTab, setActiveTab] = useState("data-validation");
   const [formState, setFormState] = useState<FormState>({
     variantIds: [],
     categoryIds: [],
@@ -33,6 +36,12 @@ const ProductFlow = () => {
   });
 
   const tabs = [
+    { 
+      id: "data-validation", 
+      label: "Data Validation", 
+      icon: CheckCircle,
+      description: "Validate and normalize product data"
+    },
     { 
       id: "brand-product-line", 
       label: "Brand & Product Line", 
@@ -124,7 +133,7 @@ const ProductFlow = () => {
       categoryIds: [],
       completedTabs: []
     });
-    setActiveTab("brand-product-line");
+    setActiveTab("data-validation");
   };
 
   return (
@@ -164,7 +173,7 @@ const ProductFlow = () => {
         {/* Main Form */}
         <Card className="shadow-elegant">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid grid-cols-9 w-full bg-muted/50">
+            <TabsList className="grid grid-cols-10 w-full bg-muted/50">
               {tabs.map((tab, index) => {
                 const Icon = tab.icon;
                 const isCompleted = formState.completedTabs.includes(tab.id);
@@ -191,6 +200,17 @@ const ProductFlow = () => {
             </TabsList>
 
             <div className="p-6">
+              <TabsContent value="data-validation" className="mt-0">
+                <DataValidationTab 
+                  formState={formState}
+                  updateFormState={updateFormState}
+                  onComplete={() => {
+                    markTabCompleted("data-validation");
+                    goToNextTab();
+                  }}
+                />
+              </TabsContent>
+
               <TabsContent value="brand-product-line" className="mt-0">
                 <BrandProductLineTab 
                   formState={formState}

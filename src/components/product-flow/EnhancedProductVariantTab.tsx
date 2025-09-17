@@ -25,14 +25,25 @@ interface VariantOptionType {
   unit: string | null;
   is_required: boolean;
   sort_order: number;
+  fuzzy_matching_enabled?: boolean;
+  auto_suggest_enabled?: boolean;
+  category?: string;
+  validation_pattern?: string;
+  display_format?: string;
+  search_aliases?: string[];
 }
 
 interface VariantOptionValue {
   id: string;
   value: string;
   display_value: string;
+  normalized_value?: string;
   numeric_value: number | null;
   sort_order: number;
+  confidence_score?: number;
+  is_verified?: boolean;
+  verification_source?: string;
+  search_keywords?: string[];
 }
 
 interface VariantData {
@@ -105,7 +116,13 @@ export const EnhancedProductVariantTab = ({ formState, updateFormState, onComple
             data_type,
             unit,
             is_required,
-            sort_order
+            sort_order,
+            fuzzy_matching_enabled,
+            auto_suggest_enabled,
+            category,
+            validation_pattern,
+            display_format,
+            search_aliases
           )
         `)
         .eq("product_line_id", formState.productLineId)
@@ -127,8 +144,13 @@ export const EnhancedProductVariantTab = ({ formState, updateFormState, onComple
             option_type_id,
             value,
             display_value,
+            normalized_value,
             numeric_value,
-            sort_order
+            sort_order,
+            confidence_score,
+            is_verified,
+            verification_source,
+            search_keywords
           `)
           .in("option_type_id", optionTypeIds)
           .order("sort_order");
