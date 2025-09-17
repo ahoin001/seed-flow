@@ -418,3 +418,4 @@ INSERT INTO schema_backup_metadata (
     0,
     'pre_cleanup_v1'
 ) ON CONFLICT DO NOTHING;
+

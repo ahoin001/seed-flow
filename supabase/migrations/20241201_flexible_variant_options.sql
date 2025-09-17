@@ -294,3 +294,4 @@ CREATE TRIGGER update_product_line_option_types_updated_at BEFORE UPDATE ON prod
 CREATE TRIGGER update_product_variant_options_updated_at BEFORE UPDATE ON product_variant_options FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_unit_categories_updated_at BEFORE UPDATE ON unit_categories FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_units_updated_at BEFORE UPDATE ON units FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+

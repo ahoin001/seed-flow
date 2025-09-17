@@ -646,3 +646,4 @@ export const ScanResultModal = ({ isOpen, onClose, variantId }: ScanResultModalP
     </Dialog>
   );
 };
+

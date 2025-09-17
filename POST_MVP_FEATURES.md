@@ -270,3 +270,4 @@ CREATE TABLE certifications (
 - Priority levels should be reassessed based on user feedback and usage data
 - Some features may be combined or implemented together for efficiency
 - Consider user research and analytics data when prioritizing features
+
