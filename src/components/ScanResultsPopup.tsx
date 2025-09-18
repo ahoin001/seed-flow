@@ -105,11 +105,11 @@ export const ScanResultsPopup = ({ isOpen, onClose, variant, productModel }: Sca
 
         <div className="space-y-6">
           {/* Header Section */}
-          <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+          <Card className="bg-primary/5 border-primary/20 shadow-sm">
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div className="space-y-2">
-                  <CardTitle className="text-2xl font-bold text-blue-900">
+                  <CardTitle className="text-2xl font-bold text-foreground">
                     {productModel?.name}
                   </CardTitle>
                   <div className="flex items-center gap-2">
@@ -202,9 +202,9 @@ export const ScanResultsPopup = ({ isOpen, onClose, variant, productModel }: Sca
 
           {/* Barcode Information */}
           {barcodeInfo && (
-            <Card className="bg-green-50 border-green-200">
+            <Card className="bg-muted/20 border-border/50 shadow-sm">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-green-800">
+                <CardTitle className="flex items-center gap-2 text-foreground">
                   <Barcode className="h-4 w-4" />
                   Barcode Information
                 </CardTitle>
@@ -243,7 +243,7 @@ export const ScanResultsPopup = ({ isOpen, onClose, variant, productModel }: Sca
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="bg-muted/20 p-4 rounded-lg border border-border/50">
                 <p className="text-sm leading-relaxed">
                   {formatIngredients()}
                 </p>
@@ -275,7 +275,7 @@ export const ScanResultsPopup = ({ isOpen, onClose, variant, productModel }: Sca
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {variant.options.map((option, index) => (
-                    <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                    <div key={index} className="flex justify-between items-center p-3 bg-muted/20 rounded-lg border border-border/50">
                       <span className="font-medium">{option.option_type_name}</span>
                       <Badge variant="secondary">{option.value}</Badge>
                     </div>

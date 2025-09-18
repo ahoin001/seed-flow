@@ -804,15 +804,15 @@ export const ProductVariantTab = ({ formState, updateFormState, onComplete }: Pr
       {/* Generated Variants */}
       <div className="space-y-4">
         {generatedVariants.map((variant) => (
-          <Card key={variant.id} className={`${!variant.data.isActive ? "opacity-50" : ""} border-l-4 border-l-primary/20`}>
+          <Card key={variant.id} className={`${!variant.data.isActive ? "opacity-50" : ""} border-l-4 border-l-primary/20 shadow-sm`}>
             <CardHeader className="pb-4">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
-                  <CardTitle className="text-lg font-semibold text-foreground">{variant.name}</CardTitle>
+                  <CardTitle className="text-lg font-semibold text-foreground mb-2">{variant.name}</CardTitle>
                   
                   {/* Custom Variant Name Input */}
-                  <div className="mt-3 p-3 bg-muted/30 rounded-lg border">
-                    <Label htmlFor={`variant-name-${variant.id}`} className="text-xs font-medium text-muted-foreground">
+                  <div className="mt-4 p-4 bg-muted/20 rounded-lg border border-border/50">
+                    <Label htmlFor={`variant-name-${variant.id}`} className="text-sm font-medium text-muted-foreground">
                       Custom Name (optional)
                     </Label>
                     <Input
@@ -820,7 +820,7 @@ export const ProductVariantTab = ({ formState, updateFormState, onComplete }: Pr
                       value={variant.data.variant_name_suffix || ""}
                       onChange={(e) => updateVariant(variant.id, 'variant_name_suffix', e.target.value)}
                       placeholder="Leave empty to use generated name"
-                      className="mt-1 h-8 text-sm"
+                      className="mt-2 h-9 text-sm"
                     />
                   </div>
                   
@@ -947,9 +947,9 @@ export const ProductVariantTab = ({ formState, updateFormState, onComplete }: Pr
 
 
               {/* Ingredients Section */}
-                <div className="bg-green-50/50 p-4 rounded-lg border border-green-200/50">
+                <div className="bg-muted/20 p-5 rounded-lg border border-border/50 space-y-3">
                 <div className="flex items-center justify-between">
-                  <Label className="text-sm font-semibold flex items-center gap-2 text-green-900">
+                  <Label className="text-sm font-semibold flex items-center gap-2 text-foreground">
                     <Leaf className="h-4 w-4" />
                     Ingredients
                   </Label>
@@ -1069,9 +1069,9 @@ export const ProductVariantTab = ({ formState, updateFormState, onComplete }: Pr
               </div>
 
               {/* Nutrition Section */}
-              <div className="bg-orange-50/50 p-4 rounded-lg border border-orange-200/50">
+              <div className="bg-muted/20 p-5 rounded-lg border border-border/50 space-y-3">
                 <div className="flex items-center justify-between">
-                  <Label className="text-sm font-semibold flex items-center gap-2 text-orange-900">
+                  <Label className="text-sm font-semibold flex items-center gap-2 text-foreground">
                     <Activity className="h-4 w-4" />
                     Nutritional Information
                   </Label>
