@@ -18,30 +18,28 @@ interface ProductIdentifiersTabProps {
 }
 
 interface Variant {
-  id: string;
-  name: string;
+  id: number;
+  variant_name_suffix: string;
 }
 
 interface Identifier {
-  id?: string;
+  id?: number;
   type: string;
   value: string;
-  isPrimary: boolean;
-  source: string;
+  is_primary: boolean;
+  retailer_name?: string;
 }
 
 interface VariantIdentifiers {
-  variantId: string;
+  variantId: number;
   identifiers: Identifier[];
 }
 
 const IDENTIFIER_TYPES = [
-  { value: "UPC", label: "UPC (Universal Product Code)" },
-  { value: "EAN", label: "EAN (European Article Number)" },
-  { value: "GTIN", label: "GTIN (Global Trade Item Number)" },
-  { value: "ASIN", label: "ASIN (Amazon Standard Identification)" },
-  { value: "SKU", label: "SKU (Stock Keeping Unit)" },
-  { value: "CUSTOM", label: "Custom Identifier" }
+  { value: "upc", label: "UPC (Universal Product Code)" },
+  { value: "ean", label: "EAN (European Article Number)" },
+  { value: "asin", label: "ASIN (Amazon Standard Identification)" },
+  { value: "retailer_sku", label: "Retailer SKU" }
 ];
 
 const IDENTIFIER_SOURCES = [

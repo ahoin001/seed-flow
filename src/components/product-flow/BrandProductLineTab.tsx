@@ -4,13 +4,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { EnhancedSelect, ComboboxOption } from "@/components/ui/enhanced-select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowRight, Plus, Building2, Package, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { FormState } from "@/pages/ProductFlow";
-import { DuplicateDetectionModal } from "@/components/DuplicateDetectionModal";
 
 interface BrandProductLineTabProps {
   formState: FormState;
@@ -21,28 +20,26 @@ interface BrandProductLineTabProps {
 export const BrandProductLineTab = ({ formState, updateFormState, onComplete }: BrandProductLineTabProps) => {
   const [brandData, setBrandData] = useState({
     name: "",
-    website: "",
-    contact_email: ""
+    website_url: "",
+    manufacturer: "",
+    country_of_origin: "",
+    data_confidence: 50,
+    is_verified: false
   });
   
   const [productLineData, setProductLineData] = useState({
     name: "",
     description: "",
-    target_species: ["dog"] as string[]
+    target_species: ["dog"] as string[],
+    data_confidence: 50
   });
   
   const [isLoading, setIsLoading] = useState(false);
   const [showNewBrandForm, setShowNewBrandForm] = useState(false);
   const [showNewProductLineForm, setShowNewProductLineForm] = useState(true);
-  const [brands, setBrands] = useState<{id: string, name: string}[]>([]);
-  const [productLines, setProductLines] = useState<{id: string, name: string, brand_id?: string}[]>([]);
-  const [filteredProductLines, setFilteredProductLines] = useState<{id: string, name: string, brand_id?: string}[]>([]);
-  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
-  const [pendingProductData, setPendingProductData] = useState<{
-    brandName: string;
-    productLineName: string;
-    identifiers?: Array<{identifier_type: string; identifier_value: string}>;
-  } | null>(null);
+  const [brands, setBrands] = useState<{id: number, name: string}[]>([]);
+  const [productLines, setProductLines] = useState<{id: number, name: string, brand_id?: number}[]>([]);
+  const [filteredProductLines, setFilteredProductLines] = useState<{id: number, name: string, brand_id?: number}[]>([]);
 
   const speciesOptions = [
     { id: "dog", label: "Dog" },
@@ -65,12 +62,12 @@ export const BrandProductLineTab = ({ formState, updateFormState, onComplete }: 
 
     const fetchProductLines = async () => {
       const { data, error } = await supabase
-        .from("product_lines")
+        .from("product_models")
         .select("id, name, brand_id")
         .order("name");
       
       if (error) {
-        console.error("Error fetching product lines:", error);
+        console.error("Error fetching product models:", error);
       } else {
         setProductLines(data || []);
         setFilteredProductLines(data || []);
@@ -103,20 +100,7 @@ export const BrandProductLineTab = ({ formState, updateFormState, onComplete }: 
   };
 
   const handleSubmit = async () => {
-    // Check for duplicates before proceeding
-    if (showNewProductLineForm) {
-      const brandName = showNewBrandForm ? brandData.name : brands.find(b => b.id === formState.brandId)?.name || '';
-      
-      setPendingProductData({
-        brandName,
-        productLineName: productLineData.name,
-        identifiers: [] // We'll add identifier checking in the identifiers tab
-      });
-      setShowDuplicateModal(true);
-      return;
-    }
-
-    // If using existing product line, proceed directly
+    // Proceed directly with creation
     await proceedWithCreation();
   };
 
@@ -138,21 +122,23 @@ export const BrandProductLineTab = ({ formState, updateFormState, onComplete }: 
         brandId = brand.id;
       }
 
-      // Create product line if new
+      // Create product model if new
       if (showNewProductLineForm) {
-        const { data: productLine, error: productLineError } = await supabase
-          .from("product_lines")
+        const { data: productModel, error: productModelError } = await supabase
+          .from("product_models")
           .insert({
             name: productLineData.name,
-            description: productLineData.description,
-            target_species: productLineData.target_species,
-            brand_id: brandId
+            base_description: productLineData.description,
+            species: productLineData.target_species.length === 2 ? "both" : productLineData.target_species[0],
+            life_stage: productLineData.target_species, // Using target_species as life_stage for now
+            brand_id: brandId,
+            data_confidence: productLineData.data_confidence
           })
           .select("id")
           .single();
 
-        if (productLineError) throw productLineError;
-        productLineId = productLine.id;
+        if (productModelError) throw productModelError;
+        productLineId = productModel.id;
       }
 
       updateFormState({
@@ -179,20 +165,6 @@ export const BrandProductLineTab = ({ formState, updateFormState, onComplete }: 
     }
   };
 
-  const handleDuplicateModalConfirm = () => {
-    setShowDuplicateModal(false);
-    proceedWithCreation();
-  };
-
-  const handleDuplicateModalSelectExisting = (productId: string) => {
-    setShowDuplicateModal(false);
-    updateFormState({ productLineId: productId, isNewProductLine: false });
-    toast({
-      title: "Product Selected",
-      description: "Using existing product line. You can now add variants to it."
-    });
-    onComplete();
-  };
 
   const isValid = (showNewProductLineForm ? productLineData.name && productLineData.target_species.length > 0 : formState.productLineId) && 
     (formState.brandId || (showNewBrandForm && brandData.name));
@@ -238,51 +210,81 @@ export const BrandProductLineTab = ({ formState, updateFormState, onComplete }: 
           </div>
 
           {showNewBrandForm ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="brandName">Brand Name *</Label>
+                  <Input
+                    id="brandName"
+                    value={brandData.name}
+                    onChange={(e) => setBrandData(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Enter brand name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="brandWebsite">Website</Label>
+                  <Input
+                    id="brandWebsite"
+                    value={brandData.website_url}
+                    onChange={(e) => setBrandData(prev => ({ ...prev, website_url: e.target.value }))}
+                    placeholder="https://example.com"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="brandManufacturer">Manufacturer</Label>
+                  <Input
+                    id="brandManufacturer"
+                    value={brandData.manufacturer}
+                    onChange={(e) => setBrandData(prev => ({ ...prev, manufacturer: e.target.value }))}
+                    placeholder="Manufacturer name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="brandCountry">Country of Origin</Label>
+                  <Input
+                    id="brandCountry"
+                    value={brandData.country_of_origin}
+                    onChange={(e) => setBrandData(prev => ({ ...prev, country_of_origin: e.target.value }))}
+                    placeholder="Country"
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="brandName">Brand Name *</Label>
+                <Label htmlFor="brandDataConfidence">Data Confidence (0-100)</Label>
                 <Input
-                  id="brandName"
-                  value={brandData.name}
-                  onChange={(e) => setBrandData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Enter brand name"
+                  id="brandDataConfidence"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={brandData.data_confidence}
+                  onChange={(e) => setBrandData(prev => ({ ...prev, data_confidence: parseInt(e.target.value) || 50 }))}
                 />
               </div>
-              <div>
-                <Label htmlFor="brandWebsite">Website</Label>
-                <Input
-                  id="brandWebsite"
-                  value={brandData.website}
-                  onChange={(e) => setBrandData(prev => ({ ...prev, website: e.target.value }))}
-                  placeholder="https://example.com"
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="brandVerified"
+                  checked={brandData.is_verified}
+                  onCheckedChange={(checked) => setBrandData(prev => ({ ...prev, is_verified: checked as boolean }))}
                 />
-              </div>
-              <div className="md:col-span-2">
-                <Label htmlFor="brandEmail">Contact Email</Label>
-                <Input
-                  id="brandEmail"
-                  type="email"
-                  value={brandData.contact_email}
-                  onChange={(e) => setBrandData(prev => ({ ...prev, contact_email: e.target.value }))}
-                  placeholder="contact@brand.com"
-                />
+                <Label htmlFor="brandVerified">Verified Brand</Label>
               </div>
             </div>
+            </>
           ) : (
             <div>
               <Label htmlFor="existingBrand">Select Brand</Label>
-              <Select onValueChange={(value) => updateFormState({ brandId: value })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose an existing brand" />
-                </SelectTrigger>
-                <SelectContent>
-                  {brands.map((brand) => (
-                    <SelectItem key={brand.id} value={brand.id}>
-                      {brand.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <EnhancedSelect
+                options={brands.map((brand) => ({
+                  value: brand.id.toString(),
+                  label: brand.name
+                }))}
+                value={formState.brandId?.toString()}
+                onValueChange={(value) => updateFormState({ brandId: parseInt(value) })}
+                placeholder="Choose an existing brand"
+                searchPlaceholder="Search brands..."
+              />
             </div>
           )}
         </CardContent>
@@ -359,22 +361,32 @@ export const BrandProductLineTab = ({ formState, updateFormState, onComplete }: 
                   rows={3}
                 />
               </div>
+              
+              <div>
+                <Label htmlFor="productLineDataConfidence">Data Confidence (0-100)</Label>
+                <Input
+                  id="productLineDataConfidence"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={productLineData.data_confidence}
+                  onChange={(e) => setProductLineData(prev => ({ ...prev, data_confidence: parseInt(e.target.value) || 50 }))}
+                />
+              </div>
             </>
           ) : (
             <div className="space-y-2">
               <Label htmlFor="existingProductLine">Select Product Line</Label>
-              <Select onValueChange={(value) => updateFormState({ productLineId: value })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose an existing product line" />
-                </SelectTrigger>
-                <SelectContent>
-                  {filteredProductLines.map((productLine) => (
-                    <SelectItem key={productLine.id} value={productLine.id}>
-                      {productLine.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <EnhancedSelect
+                options={filteredProductLines.map((productLine) => ({
+                  value: productLine.id.toString(),
+                  label: productLine.name
+                }))}
+                value={formState.productLineId?.toString()}
+                onValueChange={(value) => updateFormState({ productLineId: parseInt(value) })}
+                placeholder="Choose an existing product line"
+                searchPlaceholder="Search product lines..."
+              />
               {!showNewBrandForm && formState.brandId && filteredProductLines.length === 0 && (
                 <p className="text-sm text-muted-foreground">
                   No product lines found for this brand. Consider creating a new product line.
@@ -398,16 +410,6 @@ export const BrandProductLineTab = ({ formState, updateFormState, onComplete }: 
         </Button>
       </div>
 
-      {/* Duplicate Detection Modal */}
-      {pendingProductData && (
-        <DuplicateDetectionModal
-          isOpen={showDuplicateModal}
-          onClose={() => setShowDuplicateModal(false)}
-          onConfirmNew={handleDuplicateModalConfirm}
-          onSelectExisting={handleDuplicateModalSelectExisting}
-          productData={pendingProductData}
-        />
-      )}
     </div>
   );
 };

@@ -97,27 +97,12 @@ const ItemLookupPage = () => {
         `)
         .eq('product_variant_id', variant.id);
 
-      // Step 3: Fetch variant options
-      const { data: options, error: optionsError } = await supabase
-        .from('product_variant_options')
-        .select(`
-          product_option_values (
-            value,
-            product_options (
-              name,
-              label,
-              unit,
-              data_type
-            )
-          )
-        `)
-        .eq('product_variant_id', variant.id);
-
-      // Step 4: Fetch nutritional analysis
-      const { data: nutritionalAnalysis, error: nutritionError } = await supabase
-        .from('nutritional_analysis')
-        .select('*')
-        .eq('product_line_id', variant.product_lines?.id);
+      // Step 3: Fetch related data (flavors, formulations, package types)
+      const [flavorResult, formulationResult, packageTypeResult] = await Promise.all([
+        variant.flavor_id ? supabase.from('flavors').select('*').eq('id', variant.flavor_id).single() : Promise.resolve({ data: null, error: null }),
+        variant.formulation_id ? supabase.from('formulations').select('*').eq('id', variant.formulation_id).single() : Promise.resolve({ data: null, error: null }),
+        variant.package_type_id ? supabase.from('package_types').select('*').eq('id', variant.package_type_id).single() : Promise.resolve({ data: null, error: null })
+      ]);
 
       // Step 5: Fetch product sources
       const { data: sources, error: sourcesError } = await supabase
@@ -136,9 +121,9 @@ const ItemLookupPage = () => {
         productLine: variant.product_lines,
         brand: variant.product_lines?.brands,
         ingredients: ingredients?.map(i => i.ingredients).filter(Boolean) || [],
-        options: options?.map(o => o.product_option_values).filter(Boolean) || [],
-        nutritionalAnalysis: nutritionalAnalysis || [],
-        sources: sources || []
+        options: [], // Simplified for now - can be enhanced later
+        nutritionalAnalysis: [], // Simplified for now - can be enhanced later
+        sources: [] // Simplified for now - can be enhanced later
       });
 
     } catch (err) {
@@ -194,7 +179,7 @@ const ItemLookupPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
-      <NavigationHeader title="Product Lookup" />
+      <NavigationHeader title="Product Lookup" showBuildButton={true} showDuplicatesButton={true} />
       <div className="container mx-auto px-4 py-8">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold mb-4 bg-gradient-primary bg-clip-text text-transparent">

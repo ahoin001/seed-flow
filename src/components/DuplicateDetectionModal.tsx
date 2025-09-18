@@ -64,16 +64,16 @@ export const DuplicateDetectionModal = ({
     try {
       const duplicates: DuplicateProduct[] = [];
 
-      // 1. Check for exact brand + product line name matches
+      // 1. Check for exact brand + product model name matches
       const { data: exactMatches, error: exactError } = await supabase
-        .from("product_lines")
+        .from("product_models")
         .select(`
           id,
           name,
           created_at,
           brands!inner(name),
           product_variants(id),
-          product_identifiers(identifier_type, identifier_value, is_primary)
+          barcodes(barcode, barcode_type, is_primary)
         `)
         .eq("brands.name", productData.brandName)
         .ilike("name", `%${productData.productLineName}%`);
@@ -86,23 +86,23 @@ export const DuplicateDetectionModal = ({
             brand_name: match.brands.name,
             similarity_score: 95,
             match_type: 'exact',
-            identifiers: match.product_identifiers || [],
+            identifiers: match.barcodes || [],
             variants_count: match.product_variants?.length || 0,
             created_at: match.created_at
           });
         });
       }
 
-      // 2. Check for similar product line names (fuzzy matching)
+      // 2. Check for similar product model names (fuzzy matching)
       const { data: similarMatches, error: similarError } = await supabase
-        .from("product_lines")
+        .from("product_models")
         .select(`
           id,
           name,
           created_at,
           brands!inner(name),
           product_variants(id),
-          product_identifiers(identifier_type, identifier_value, is_primary)
+          barcodes(barcode, barcode_type, is_primary)
         `)
         .neq("brands.name", productData.brandName)
         .ilike("name", `%${productData.productLineName}%`);
@@ -115,7 +115,7 @@ export const DuplicateDetectionModal = ({
             brand_name: match.brands.name,
             similarity_score: 75,
             match_type: 'similar',
-            identifiers: match.product_identifiers || [],
+            identifiers: match.barcodes || [],
             variants_count: match.product_variants?.length || 0,
             created_at: match.created_at
           });

@@ -16,7 +16,7 @@ interface CategoriesTabProps {
 
 export const CategoriesTab = ({ formState, updateFormState, onComplete }: CategoriesTabProps) => {
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<number[]>([]);
   const [availableCategories, setAvailableCategories] = useState<any[]>([]);
 
   useEffect(() => {
@@ -43,7 +43,7 @@ export const CategoriesTab = ({ formState, updateFormState, onComplete }: Catego
     fetchCategories();
   }, []);
 
-  const handleCategoryToggle = (categoryId: string) => {
+  const handleCategoryToggle = (categoryId: number) => {
     setSelectedCategories(prev => {
       const newSelection = prev.includes(categoryId)
         ? prev.filter(id => id !== categoryId)
@@ -68,13 +68,13 @@ export const CategoriesTab = ({ formState, updateFormState, onComplete }: Catego
     try {
       // Create product line category associations
       const categoryInserts = selectedCategories.map((categoryId, index) => ({
-        product_line_id: formState.productLineId,
+        product_model_id: formState.productLineId,
         category_id: categoryId,
         is_primary: index === 0 // First category is primary
       }));
 
       const { error } = await supabase
-        .from("product_line_categories")
+        .from("product_model_categories")
         .insert(categoryInserts);
 
       if (error) throw error;

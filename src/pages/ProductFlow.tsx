@@ -1,34 +1,48 @@
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { ArrowRight, Package, Palette, Settings, Tag, MapPin, Check, Leaf, Cog, CheckCircle } from "lucide-react";
 import { NavigationHeader } from "@/components/NavigationHeader";
 import { BrandProductLineTab } from "@/components/product-flow/BrandProductLineTab";
-import { DataValidationTab } from "@/components/product-flow/DataValidationTab";
 import { EnhancedVariantOptionsTab } from "@/components/product-flow/EnhancedVariantOptionsTab";
 import { ProductVariantTab } from "@/components/product-flow/ProductVariantTab";
-import { CategoriesTab } from "@/components/product-flow/CategoriesTab";
-import { ProductIdentifiersTab } from "@/components/product-flow/ProductIdentifiersTab";
-import { IngredientsTab } from "@/components/product-flow/IngredientsTab";
-import { NutritionalAnalysisTab } from "@/components/product-flow/NutritionalAnalysisTab";
-import { SourcesTab } from "@/components/product-flow/SourcesTab";
-import { ProductRatingTab } from "@/components/product-flow/ProductRatingTab";
+import { ReviewCreateTab } from "@/components/product-flow/ReviewCreateTab";
+import { Package, Cog, Palette, FileText, Leaf, CheckCircle, Check } from "lucide-react";
 
 export interface FormState {
-  brandId?: string;
-  productLineId?: string;
-  variantIds: string[];
-  categoryIds: string[];
+  brandId?: number;
+  productLineId?: number;
+  variantIds: number[];
+  categoryIds: number[];
   completedTabs: string[];
   isNewProductLine?: boolean;
-  optionTypeIds?: string[];
+  optionTypeIds?: number[];
+  selectedOptionTypes?: Array<{
+    id: number;
+    name: string;
+    label: string;
+    data_type: string;
+    selectedValues: string[];
+  }>;
+  variantPermutations?: number;
+  generatedVariants?: Array<{
+    id: string;
+    name: string;
+    optionValues: Record<string, string>;
+    data: {
+      variant_name_suffix: string;
+      image_url: string;
+      upc: string;
+      ean: string;
+      asin: string;
+      form_factor: string;
+      optionValues: Record<string, string>;
+      isActive: boolean;
+    };
+  }>;
   normalizedProductData?: any;
 }
 
 const ProductFlow = () => {
-  const [activeTab, setActiveTab] = useState("data-validation");
+  const [activeTab, setActiveTab] = useState("brand-product-line");
   const [formState, setFormState] = useState<FormState>({
     variantIds: [],
     categoryIds: [],
@@ -36,12 +50,6 @@ const ProductFlow = () => {
   });
 
   const tabs = [
-    { 
-      id: "data-validation", 
-      label: "Data Validation", 
-      icon: CheckCircle,
-      description: "Validate and normalize product data"
-    },
     { 
       id: "brand-product-line", 
       label: "Brand & Product Line", 
@@ -58,73 +66,18 @@ const ProductFlow = () => {
       id: "variants", 
       label: "Product Variants", 
       icon: Palette,
-      description: "Add product variants"
+      description: "Configure variants with categories, identifiers, and nutrition"
     },
     { 
-      id: "categories", 
-      label: "Categories", 
-      icon: Tag,
-      description: "Assign product categories"
-    },
-    { 
-      id: "identifiers", 
-      label: "Product Identifiers", 
-      icon: Settings,
-      description: "Add UPC, EAN, and other identifiers"
-    },
-    { 
-      id: "ingredients", 
-      label: "Ingredients", 
-      icon: Leaf,
-      description: "Map ingredients to variants"
-    },
-    { 
-      id: "nutrition", 
-      label: "Nutritional Analysis", 
-      icon: Tag,
-      description: "Add nutritional information"
-    },
-    { 
-      id: "sources", 
-      label: "Sources", 
-      icon: MapPin,
-      description: "Add retailer information"
-    },
-    { 
-      id: "rating", 
-      label: "Product Rating", 
-      icon: Check,
-      description: "Set product rating and scores"
+      id: "review-create", 
+      label: "Review & Create", 
+      icon: CheckCircle,
+      description: "Review and create product"
     }
   ];
 
   const updateFormState = (updates: Partial<FormState>) => {
     setFormState(prev => ({ ...prev, ...updates }));
-  };
-
-  const markTabCompleted = (tabId: string) => {
-    setFormState(prev => ({
-      ...prev,
-      completedTabs: [...new Set([...prev.completedTabs, tabId])]
-    }));
-  };
-
-  const getCurrentTabIndex = () => tabs.findIndex(tab => tab.id === activeTab);
-  const progressValue = ((getCurrentTabIndex() + 1) / tabs.length) * 100;
-
-  const canAccessTab = (tabId: string) => {
-    const tabIndex = tabs.findIndex(tab => tab.id === tabId);
-    if (tabIndex === 0) return true;
-    
-    const previousTab = tabs[tabIndex - 1];
-    return formState.completedTabs.includes(previousTab.id);
-  };
-
-  const goToNextTab = () => {
-    const currentIndex = getCurrentTabIndex();
-    if (currentIndex < tabs.length - 1) {
-      setActiveTab(tabs[currentIndex + 1].id);
-    }
   };
 
   const clearWorkflow = () => {
@@ -133,185 +86,122 @@ const ProductFlow = () => {
       categoryIds: [],
       completedTabs: []
     });
-    setActiveTab("data-validation");
+    setActiveTab("brand-product-line");
+  };
+
+  const handleTabComplete = (tabId: string) => {
+    const newCompletedTabs = [...formState.completedTabs, tabId];
+    updateFormState({ completedTabs: newCompletedTabs });
+    
+    // Auto-advance to next tab
+    const currentIndex = tabs.findIndex(tab => tab.id === tabId);
+    if (currentIndex < tabs.length - 1) {
+      setActiveTab(tabs[currentIndex + 1].id);
+    }
   };
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
-      <NavigationHeader title="SniffSafe Data Seed" showLookupButton={true} />
-      <div className="container mx-auto py-8 px-4">
+      <NavigationHeader title="SniffSafe Data Seed" showLookupButton={true} showDuplicatesButton={true} />
+      
+      <div className="container mx-auto py-8 px-4 max-w-7xl">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold mb-4 bg-gradient-primary bg-clip-text text-transparent">
             Build Your Product
           </h1>
-          <p className="text-lg text-muted-foreground mb-6">
-            Follow the guided workflow to create comprehensive product listings
+          <p className="text-muted-foreground text-lg">
+            Create comprehensive pet food products with variants, nutrition data, and more
           </p>
         </div>
 
-        {/* Progress */}
-        <Card className="mb-8 shadow-elegant">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-xl">Progress</CardTitle>
-                <CardDescription>
-                  Step {getCurrentTabIndex() + 1} of {tabs.length}
-                </CardDescription>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          {/* Progress Steps - Desktop Only */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between relative">
+              {/* Progress Line */}
+              <div className="absolute top-6 left-0 right-0 h-0.5 bg-muted">
+                <div 
+                  className="h-full bg-primary transition-all duration-300"
+                  style={{ 
+                    width: `${(formState.completedTabs.length / (tabs.length - 1)) * 100}%` 
+                  }}
+                />
               </div>
-              <div className="text-right">
-                <div className="text-2xl font-bold text-primary">
-                  {Math.round(progressValue)}%
-                </div>
-                <div className="text-sm text-muted-foreground">Complete</div>
-              </div>
-            </div>
-            <Progress value={progressValue} className="mt-4" />
-          </CardHeader>
-        </Card>
-
-        {/* Main Form */}
-        <Card className="shadow-elegant">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid grid-cols-10 w-full bg-muted/50">
+              
+              {/* Step Indicators */}
               {tabs.map((tab, index) => {
-                const Icon = tab.icon;
                 const isCompleted = formState.completedTabs.includes(tab.id);
-                const canAccess = canAccessTab(tab.id);
+                const isCurrent = activeTab === tab.id;
+                const isDisabled = index > 0 && !formState.completedTabs.includes(tabs[index - 1].id);
                 
                 return (
-                  <TabsTrigger 
-                    key={tab.id} 
-                    value={tab.id}
-                    disabled={!canAccess}
-                    className="flex flex-col gap-1 py-3 data-[state=active]:bg-background data-[state=active]:shadow-sm"
-                  >
-                    <div className="flex items-center gap-1">
+                  <div key={tab.id} className="flex flex-col items-center relative z-10">
+                    <button
+                      onClick={() => !isDisabled && setActiveTab(tab.id)}
+                      className={`w-12 h-12 rounded-full p-0 flex items-center justify-center transition-all ${
+                        isCompleted 
+                          ? 'bg-primary text-primary-foreground' 
+                          : isCurrent 
+                          ? 'bg-primary/20 text-primary border-2 border-primary' 
+                          : 'bg-muted text-muted-foreground'
+                      } ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-primary/10'}`}
+                      disabled={isDisabled}
+                    >
                       {isCompleted ? (
-                        <Check className="h-4 w-4 text-success" />
+                        <Check className="h-5 w-5" />
                       ) : (
-                        <Icon className="h-4 w-4" />
+                        <tab.icon className="h-5 w-5" />
                       )}
-                      <span className="hidden md:inline text-sm">{tab.label}</span>
+                    </button>
+                    <div className="mt-2 text-center max-w-24">
+                      <div className="text-sm font-medium leading-tight">{tab.label}</div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {tab.description}
+                      </div>
                     </div>
-                  </TabsTrigger>
+                  </div>
                 );
               })}
-            </TabsList>
-
-            <div className="p-6">
-              <TabsContent value="data-validation" className="mt-0">
-                <DataValidationTab 
-                  formState={formState}
-                  updateFormState={updateFormState}
-                  onComplete={() => {
-                    markTabCompleted("data-validation");
-                    goToNextTab();
-                  }}
-                />
-              </TabsContent>
-
-              <TabsContent value="brand-product-line" className="mt-0">
-                <BrandProductLineTab 
-                  formState={formState}
-                  updateFormState={updateFormState}
-                  onComplete={() => {
-                    markTabCompleted("brand-product-line");
-                    goToNextTab();
-                  }}
-                />
-              </TabsContent>
-
-              <TabsContent value="option-types" className="mt-0">
-                <EnhancedVariantOptionsTab 
-                  formState={formState}
-                  updateFormState={updateFormState}
-                  onComplete={() => {
-                    markTabCompleted("option-types");
-                    goToNextTab();
-                  }}
-                />
-              </TabsContent>
-
-              <TabsContent value="variants" className="mt-0">
-                <ProductVariantTab 
-                  formState={formState}
-                  updateFormState={updateFormState}
-                  onComplete={() => {
-                    markTabCompleted("variants");
-                    goToNextTab();
-                  }}
-                />
-              </TabsContent>
-
-              <TabsContent value="categories" className="mt-0">
-                <CategoriesTab 
-                  formState={formState}
-                  updateFormState={updateFormState}
-                  onComplete={() => {
-                    markTabCompleted("categories");
-                    goToNextTab();
-                  }}
-                />
-              </TabsContent>
-
-              <TabsContent value="identifiers" className="mt-0">
-                <ProductIdentifiersTab 
-                  formState={formState}
-                  updateFormState={updateFormState}
-                  onComplete={() => {
-                    markTabCompleted("identifiers");
-                    goToNextTab();
-                  }}
-                />
-              </TabsContent>
-
-              <TabsContent value="ingredients" className="mt-0">
-                <IngredientsTab 
-                  formState={formState}
-                  updateFormState={updateFormState}
-                  onComplete={() => {
-                    markTabCompleted("ingredients");
-                    goToNextTab();
-                  }}
-                />
-              </TabsContent>
-
-              <TabsContent value="nutrition" className="mt-0">
-                <NutritionalAnalysisTab 
-                  formState={formState}
-                  updateFormState={updateFormState}
-                  onComplete={() => {
-                    markTabCompleted("nutrition");
-                    goToNextTab();
-                  }}
-                />
-              </TabsContent>
-
-              <TabsContent value="sources" className="mt-0">
-                <SourcesTab 
-                  formState={formState}
-                  updateFormState={updateFormState}
-                  onComplete={() => {
-                    markTabCompleted("sources");
-                    goToNextTab();
-                  }}
-                />
-              </TabsContent>
-
-              <TabsContent value="rating" className="mt-0">
-                <ProductRatingTab 
-                  formState={formState}
-                  updateFormState={updateFormState}
-                  onComplete={() => {
-                    markTabCompleted("rating");
-                    clearWorkflow();
-                  }}
-                />
-              </TabsContent>
             </div>
-          </Tabs>
-        </Card>
+          </div>
+
+          <TabsContent value="brand-product-line" className="mt-6">
+            <BrandProductLineTab 
+              formState={formState}
+              updateFormState={updateFormState}
+              onComplete={() => handleTabComplete("brand-product-line")}
+            />
+          </TabsContent>
+
+          <TabsContent value="option-types" className="mt-6">
+            <EnhancedVariantOptionsTab 
+              formState={formState}
+              updateFormState={updateFormState}
+              onComplete={() => handleTabComplete("option-types")}
+            />
+          </TabsContent>
+
+          <TabsContent value="variants" className="mt-6">
+            <ProductVariantTab 
+              formState={formState}
+              updateFormState={updateFormState}
+              onComplete={() => handleTabComplete("variants")}
+            />
+          </TabsContent>
+
+
+          <TabsContent value="review-create" className="mt-6">
+            <ReviewCreateTab 
+              formState={formState}
+              updateFormState={updateFormState}
+              onComplete={() => {
+                handleTabComplete("review-create");
+                clearWorkflow();
+              }}
+              onNavigateToStep={(stepId) => setActiveTab(stepId)}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
