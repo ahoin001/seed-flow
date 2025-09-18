@@ -205,6 +205,7 @@ export const ProductVariantTab = ({ formState, updateFormState, onComplete }: Pr
   const [globalCategories, setGlobalCategories] = useState<number[]>([]);
   const [showAdvancedFields, setShowAdvancedFields] = useState(false);
   const [collapsedIngredients, setCollapsedIngredients] = useState<Set<string>>(new Set());
+  const [collapsedNutrition, setCollapsedNutrition] = useState<Set<string>>(new Set());
   
   // Categories state
   const [availableCategories, setAvailableCategories] = useState<Category[]>([]);
@@ -419,6 +420,18 @@ export const ProductVariantTab = ({ formState, updateFormState, onComplete }: Pr
     });
   };
 
+  const toggleNutritionCollapse = (variantId: string) => {
+    setCollapsedNutrition(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(variantId)) {
+        newSet.delete(variantId);
+      } else {
+        newSet.add(variantId);
+      }
+      return newSet;
+    });
+  };
+
   const saveIngredientsAndCollapse = (variantId: string) => {
     // Collapse the ingredients section after saving
     setCollapsedIngredients(prev => new Set([...prev, variantId]));
@@ -608,7 +621,9 @@ export const ProductVariantTab = ({ formState, updateFormState, onComplete }: Pr
 
           {/* Global Categories */}
           <div>
-            <Label className="text-sm font-medium mb-2 block">Categories</Label>
+            <Label className="text-sm font-medium mb-2 block">
+              Categories <span className="text-red-500">*</span>
+            </Label>
             <div className="flex gap-4 items-end">
               <div className="flex-1">
                 <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto border rounded-md p-2">
@@ -634,6 +649,9 @@ export const ProductVariantTab = ({ formState, updateFormState, onComplete }: Pr
                     </div>
                   ))}
                 </div>
+                {globalCategories.length === 0 && (
+                  <p className="text-sm text-red-500 mt-1">Please select at least one category</p>
+                )}
               </div>
               <Button 
                 onClick={applyGlobalCategories}
@@ -927,38 +945,6 @@ export const ProductVariantTab = ({ formState, updateFormState, onComplete }: Pr
                 </div>
               </div>
 
-              {/* Categories Section */}
-                <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-200/50">
-                <Label className="text-sm font-semibold flex items-center gap-2 text-blue-900">
-                  <Tag className="h-4 w-4" />
-                  Categories
-                </Label>
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  {availableCategories.map((category) => (
-                    <div key={category.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`${variant.id}-category-${category.id}`}
-                        checked={variant.data.categories.includes(category.id)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            updateVariant(variant.id, 'categories', [...variant.data.categories, category.id]);
-                          } else {
-                            updateVariant(variant.id, 'categories', variant.data.categories.filter(id => id !== category.id));
-                          }
-                        }}
-                      />
-                      <Label htmlFor={`${variant.id}-category-${category.id}`} className="text-sm">
-                        {category.name}
-                        {category.target_species.length > 0 && (
-                          <span className="text-muted-foreground ml-1">
-                            ({category.target_species.join(', ')})
-                          </span>
-                        )}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-                </div>
 
               {/* Ingredients Section */}
                 <div className="bg-green-50/50 p-4 rounded-lg border border-green-200/50">
@@ -1084,33 +1070,45 @@ export const ProductVariantTab = ({ formState, updateFormState, onComplete }: Pr
 
               {/* Nutrition Section */}
               <div className="bg-orange-50/50 p-4 rounded-lg border border-orange-200/50">
-                <Label className="text-sm font-semibold flex items-center gap-2 text-orange-900">
-                  <Activity className="h-4 w-4" />
-                  Nutritional Information
-                </Label>
-                <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {nutritionalAttributes.slice(0, 6).map((attribute) => (
-                    <div key={attribute.id}>
-                      <Label htmlFor={`${variant.id}-nutrition-${attribute.id}`} className="text-xs">
-                        {attribute.display_name}
-                        {attribute.unit && ` (${attribute.unit})`}
-                      </Label>
-                  <Input
-                        id={`${variant.id}-nutrition-${attribute.id}`}
-                        type="number"
-                        step="0.1"
-                        value={variant.data.nutrition[attribute.id] || ''}
-                        onChange={(e) => {
-                          const newNutrition = { ...variant.data.nutrition };
-                          newNutrition[attribute.id] = parseFloat(e.target.value) || 0;
-                          updateVariant(variant.id, 'nutrition', newNutrition);
-                        }}
-                        placeholder="0.0"
-                        className="text-sm"
-                      />
-                    </div>
-                  ))}
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-semibold flex items-center gap-2 text-orange-900">
+                    <Activity className="h-4 w-4" />
+                    Nutritional Information
+                  </Label>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => toggleNutritionCollapse(variant.id)}
+                  >
+                    {collapsedNutrition.has(variant.id) ? "Show Details" : "Hide Details"}
+                  </Button>
                 </div>
+                
+                {!collapsedNutrition.has(variant.id) && (
+                  <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {nutritionalAttributes.slice(0, 6).map((attribute) => (
+                      <div key={attribute.id}>
+                        <Label htmlFor={`${variant.id}-nutrition-${attribute.id}`} className="text-xs">
+                          {attribute.display_name}
+                          {attribute.unit && ` (${attribute.unit})`}
+                        </Label>
+                        <Input
+                          id={`${variant.id}-nutrition-${attribute.id}`}
+                          type="number"
+                          step="0.1"
+                          value={variant.data.nutrition[attribute.id] || ''}
+                          onChange={(e) => {
+                            const newNutrition = { ...variant.data.nutrition };
+                            newNutrition[attribute.id] = parseFloat(e.target.value) || 0;
+                            updateVariant(variant.id, 'nutrition', newNutrition);
+                          }}
+                          placeholder="0.0"
+                          className="text-sm"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
