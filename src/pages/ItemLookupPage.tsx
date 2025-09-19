@@ -179,7 +179,7 @@ const ItemLookupPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
-      <NavigationHeader title="Product Lookup" showBuildButton={true} showDuplicatesButton={true} />
+      <NavigationHeader title="Product Lookup" showBuildButton={true} showDuplicatesButton={true} showParserTesterButton={true} />
       <div className="container mx-auto px-4 py-8">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold mb-4 bg-gradient-primary bg-clip-text text-transparent">

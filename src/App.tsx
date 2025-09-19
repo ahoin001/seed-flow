@@ -7,6 +7,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import ProductFlow from "./pages/ProductFlow";
 import ItemLookupPage from "./pages/ItemLookupPage";
 import DuplicatesPage from "./pages/DuplicatesPage";
+import AmazonFlow from "./pages/AmazonFlow";
+import ParserTester from "./pages/ParserTester";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -15,13 +17,15 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider defaultTheme="system" storageKey="app-theme">
       <TooltipProvider>
-        <Toaster />
-        <Sonner />
+        <Toaster position="top-right" />
+        <Sonner position="top-right" />
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<ProductFlow />} />
             <Route path="/lookup" element={<ItemLookupPage />} />
             <Route path="/duplicates" element={<DuplicatesPage />} />
+            <Route path="/amazon-flow" element={<AmazonFlow />} />
+            <Route path="/parser-tester" element={<ParserTester />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

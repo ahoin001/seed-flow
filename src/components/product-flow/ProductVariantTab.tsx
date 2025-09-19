@@ -68,41 +68,42 @@ interface NutritionalAttribute {
   data_type: string;
 }
 
-// Form factor options for pet food categorization
+// Form factor options for pet food categorization (alphabetized)
 const FORM_FACTOR_OPTIONS = [
-  { value: "dry kibble", label: "Dry Kibble", description: "Traditional dry dog/cat food" },
-  { value: "treats", label: "Treats", description: "Dog/cat treats and snacks" },
-  { value: "wet pâté", label: "Wet Pâté", description: "Smooth wet food" },
-  { value: "wet chunks", label: "Wet Chunks", description: "Wet food with meat chunks" },
-  { value: "wet shreds", label: "Wet Shreds", description: "Wet food with shredded meat" },
-  { value: "wet stew", label: "Wet Stew", description: "Wet food in gravy/sauce" },
-  { value: "freeze-dried", label: "Freeze-Dried", description: "Freeze-dried raw food" },
   { value: "dehydrated", label: "Dehydrated", description: "Dehydrated raw food" },
+  { value: "dry kibble", label: "Dry Kibble", description: "Traditional dry dog/cat food" },
+  { value: "freeze-dried", label: "Freeze-Dried", description: "Freeze-dried raw food" },
   { value: "raw frozen", label: "Raw Frozen", description: "Frozen raw food" },
   { value: "semi-moist", label: "Semi-Moist", description: "Semi-moist food" },
-  { value: "topper", label: "Topper", description: "Food toppers and mixers" }
+  { value: "topper", label: "Topper", description: "Food toppers and mixers" },
+  { value: "treats", label: "Treats", description: "Dog/cat treats and snacks" },
+  { value: "wet chunks", label: "Wet Chunks", description: "Wet food with meat chunks" },
+  { value: "wet pâté", label: "Wet Pâté", description: "Smooth wet food" },
+  { value: "wet shreds", label: "Wet Shreds", description: "Wet food with shredded meat" },
+  { value: "wet stew", label: "Wet Stew", description: "Wet food in gravy/sauce" }
 ];
 
-// Package size unit options
+// Package size unit options (alphabetized)
 const PACKAGE_SIZE_UNITS = [
-  { value: "oz", label: "Ounces (oz)" },
-  { value: "lb", label: "Pounds (lb)" },
-  { value: "kg", label: "Kilograms (kg)" },
-  { value: "g", label: "Grams (g)" },
-  { value: "ml", label: "Milliliters (ml)" },
-  { value: "l", label: "Liters (l)" },
-  { value: "cup", label: "Cups" },
   { value: "can", label: "Cans" },
+  { value: "cup", label: "Cups" },
+  { value: "g", label: "Grams (g)" },
+  { value: "kg", label: "Kilograms (kg)" },
+  { value: "l", label: "Liters (l)" },
+  { value: "lb", label: "Pounds (lb)" },
+  { value: "ml", label: "Milliliters (ml)" },
+  { value: "oz", label: "Ounces (oz)" },
   { value: "pouch", label: "Pouches" }
 ];
 
-// Barcode type options
+// Barcode type options (alphabetized)
 const BARCODE_TYPES = [
-  { value: "upc", label: "UPC" },
-  { value: "ean", label: "EAN" },
   { value: "asin", label: "ASIN" },
+  { value: "ean", label: "EAN" },
+  { value: "gtin", label: "GTIN" },
+  { value: "manufacturer_sku", label: "Manufacturer SKU" },
   { value: "retailer_sku", label: "Retailer SKU" },
-  { value: "manufacturer_sku", label: "Manufacturer SKU" }
+  { value: "upc", label: "UPC" }
 ];
 
 // Add Barcode Form Component
@@ -207,6 +208,11 @@ export const ProductVariantTab = ({ formState, updateFormState, onComplete }: Pr
   const [collapsedIngredients, setCollapsedIngredients] = useState<Set<string>>(new Set());
   const [collapsedNutrition, setCollapsedNutrition] = useState<Set<string>>(new Set());
   
+  // Selective variant generation
+  const [dontGenerateAll, setDontGenerateAll] = useState(false);
+  const [allPossibleCombinations, setAllPossibleCombinations] = useState<Record<string, string>[]>([]);
+  const [selectedCombinations, setSelectedCombinations] = useState<Set<string>>(new Set());
+  
   // Categories state
   const [availableCategories, setAvailableCategories] = useState<Category[]>([]);
   
@@ -237,7 +243,7 @@ export const ProductVariantTab = ({ formState, updateFormState, onComplete }: Pr
     fetchCategories();
     fetchIngredients();
     fetchNutritionalAttributes();
-  }, [formState.selectedOptionTypes]);
+  }, [formState.selectedOptionTypes, dontGenerateAll, selectedCombinations]);
 
   useEffect(() => {
     const filtered = availableIngredients.filter(ingredient =>
@@ -249,38 +255,73 @@ export const ProductVariantTab = ({ formState, updateFormState, onComplete }: Pr
   const generateVariants = () => {
     if (!formState.selectedOptionTypes || formState.selectedOptionTypes.length === 0) {
       setGeneratedVariants([]);
+      setAllPossibleCombinations([]);
       return;
     }
 
     // Generate all permutations of selected option values
     const permutations = generatePermutations(formState.selectedOptionTypes);
+    setAllPossibleCombinations(permutations);
     
-    const variants: GeneratedVariant[] = permutations.map((permutation, index) => {
-      const variantName = Object.entries(permutation)
-        .map(([key, value]) => `${key}: ${value}`)
-        .join(', ');
-      
-      return {
-        id: `variant-${index}`,
-        name: variantName,
-        optionValues: permutation,
-        data: {
-          variant_name_suffix: variantName,
-          image_url: "",
-          form_factor: "",
-          package_size_value: undefined,
-          package_size_unit: "",
-          barcodes: [],
-          optionValues: permutation,
-          categories: [],
-          ingredients: [],
-          nutrition: {},
-          isActive: true
+    if (dontGenerateAll) {
+      // Only generate variants for selected combinations
+      const variants: GeneratedVariant[] = [];
+      permutations.forEach((permutation, index) => {
+        const combinationKey = JSON.stringify(permutation);
+        if (selectedCombinations.has(combinationKey)) {
+          const variantName = Object.entries(permutation)
+            .map(([key, value]) => `${key}: ${value}`)
+            .join(', ');
+          
+          variants.push({
+            id: `variant-${index}`,
+            name: variantName,
+            optionValues: permutation,
+            data: {
+              variant_name_suffix: variantName,
+              image_url: "",
+              form_factor: "",
+              package_size_value: undefined,
+              package_size_unit: "",
+              barcodes: [],
+              optionValues: permutation,
+              categories: [],
+              ingredients: [],
+              nutrition: {},
+              isActive: true
+            }
+          });
         }
-      };
-    });
-
-    setGeneratedVariants(variants);
+      });
+      setGeneratedVariants(variants);
+    } else {
+      // Generate all variants (original behavior)
+      const variants: GeneratedVariant[] = permutations.map((permutation, index) => {
+        const variantName = Object.entries(permutation)
+          .map(([key, value]) => `${key}: ${value}`)
+          .join(', ');
+        
+        return {
+          id: `variant-${index}`,
+          name: variantName,
+          optionValues: permutation,
+          data: {
+            variant_name_suffix: variantName,
+            image_url: "",
+            form_factor: "",
+            package_size_value: undefined,
+            package_size_unit: "",
+            barcodes: [],
+            optionValues: permutation,
+            categories: [],
+            ingredients: [],
+            nutrition: {},
+            isActive: true
+          }
+        };
+      });
+      setGeneratedVariants(variants);
+    }
   };
 
   const generatePermutations = (optionTypes: any[]): Record<string, string>[] => {
@@ -301,6 +342,27 @@ export const ProductVariantTab = ({ formState, updateFormState, onComplete }: Pr
           }
 
     return permutations;
+  };
+
+  const toggleCombinationSelection = (combinationKey: string) => {
+    setSelectedCombinations(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(combinationKey)) {
+        newSet.delete(combinationKey);
+      } else {
+        newSet.add(combinationKey);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAllCombinations = () => {
+    const allKeys = allPossibleCombinations.map(combo => JSON.stringify(combo));
+    setSelectedCombinations(new Set(allKeys));
+  };
+
+  const deselectAllCombinations = () => {
+    setSelectedCombinations(new Set());
   };
 
   const updateVariant = (variantId: string, field: keyof VariantData, value: any) => {
@@ -577,18 +639,18 @@ export const ProductVariantTab = ({ formState, updateFormState, onComplete }: Pr
 
       {/* Global Settings */}
       <Card className="bg-primary/5">
-        <CardHeader>
+          <CardHeader>
           <CardTitle className="text-lg">Global Settings</CardTitle>
-          <CardDescription>
+            <CardDescription>
             Set global values for all variants at once, or override individually below
-          </CardDescription>
-        </CardHeader>
+            </CardDescription>
+          </CardHeader>
         <CardContent className="space-y-6">
           {/* Global Food Type */}
           <div>
             <Label className="text-sm font-medium mb-2 block">Food Type</Label>
             <div className="flex gap-4 items-end">
-              <div className="flex-1">
+                  <div className="flex-1">
                 <Select
                   value={globalFormFactor}
                   onValueChange={setGlobalFormFactor}
@@ -616,8 +678,8 @@ export const ProductVariantTab = ({ formState, updateFormState, onComplete }: Pr
               >
                 Apply to All
               </Button>
-            </div>
-          </div>
+                    </div>
+                  </div>
 
           {/* Global Categories */}
           <div>
@@ -646,8 +708,8 @@ export const ProductVariantTab = ({ formState, updateFormState, onComplete }: Pr
                       >
                         {category.name}
                       </Label>
-                    </div>
-                  ))}
+                </div>
+              ))}
                 </div>
                 {globalCategories.length === 0 && (
                   <p className="text-sm text-red-500 mt-1">Please select at least one category</p>
@@ -679,6 +741,29 @@ export const ProductVariantTab = ({ formState, updateFormState, onComplete }: Pr
               {showAdvancedFields ? 'Hide' : 'Show'} Advanced Fields
             </Button>
           </div>
+
+          {/* Variant Generation Toggle */}
+          <div className="flex items-center justify-between pt-4 border-t">
+            <div>
+              <h4 className="font-semibold">Variant Generation</h4>
+              <p className="text-sm text-muted-foreground">
+                {dontGenerateAll 
+                  ? "Select specific option combinations to create variants" 
+                  : "Automatically generate all possible option combinations"
+                }
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="dont-generate-all"
+                checked={dontGenerateAll}
+                onCheckedChange={(checked) => setDontGenerateAll(checked === true)}
+              />
+              <Label htmlFor="dont-generate-all" className="text-sm font-medium">
+                Don't Generate All Variants
+              </Label>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -704,6 +789,77 @@ export const ProductVariantTab = ({ formState, updateFormState, onComplete }: Pr
           </div>
         </CardContent>
       </Card>
+
+      {/* Option Combinations Selection */}
+      {dontGenerateAll && allPossibleCombinations.length > 0 && (
+        <Card className="bg-muted/20">
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span>Select Option Combinations</span>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={selectAllCombinations}
+                >
+                  Select All
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={deselectAllCombinations}
+                >
+                  Deselect All
+                </Button>
+              </div>
+            </CardTitle>
+            <CardDescription>
+              Choose which option combinations to create as variants. 
+              {allPossibleCombinations.length} total combinations available.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-64 overflow-y-auto">
+              {allPossibleCombinations.map((combination, index) => {
+                const combinationKey = JSON.stringify(combination);
+                const isSelected = selectedCombinations.has(combinationKey);
+                const combinationText = Object.entries(combination)
+                  .map(([key, value]) => `${key}: ${value}`)
+                  .join(', ');
+
+                return (
+                  <div
+                    key={combinationKey}
+                    className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                      isSelected 
+                        ? 'border-primary bg-primary/5' 
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                    onClick={() => toggleCombinationSelection(combinationKey)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        checked={isSelected}
+                        className="pointer-events-none"
+                      />
+                      <span className="text-sm font-medium">
+                        {combinationText}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {selectedCombinations.size > 0 && (
+              <div className="mt-4 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                <p className="text-sm font-medium">
+                  {selectedCombinations.size} combination{selectedCombinations.size !== 1 ? 's' : ''} selected
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Add Custom Variant Form */}
       {showAddVariant && (
@@ -917,7 +1073,7 @@ export const ProductVariantTab = ({ formState, updateFormState, onComplete }: Pr
               </div>
               
               {/* Barcodes Section */}
-              <div>
+                <div>
                 <Label className="text-sm font-medium">Product Identifiers</Label>
                 <div className="mt-2 space-y-2">
                   {variant.data.barcodes.map((barcode, index) => (
@@ -1092,7 +1248,7 @@ export const ProductVariantTab = ({ formState, updateFormState, onComplete }: Pr
                           {attribute.display_name}
                           {attribute.unit && ` (${attribute.unit})`}
                         </Label>
-                        <Input
+                  <Input
                           id={`${variant.id}-nutrition-${attribute.id}`}
                           type="number"
                           step="0.1"
@@ -1104,8 +1260,8 @@ export const ProductVariantTab = ({ formState, updateFormState, onComplete }: Pr
                           }}
                           placeholder="0.0"
                           className="text-sm"
-                        />
-                      </div>
+                  />
+                </div>
                     ))}
                   </div>
                 )}

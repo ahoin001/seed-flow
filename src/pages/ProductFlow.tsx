@@ -102,7 +102,7 @@ const ProductFlow = () => {
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
-      <NavigationHeader title="SniffSafe Data Seed" showLookupButton={true} showDuplicatesButton={true} />
+      <NavigationHeader title="SniffSafe Data Seed" showLookupButton={true} showDuplicatesButton={true} showAmazonButton={true} showParserTesterButton={true} />
       
       <div className="container mx-auto py-8 px-4 max-w-7xl">
         <div className="text-center mb-8">

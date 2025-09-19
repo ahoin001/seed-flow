@@ -169,7 +169,7 @@ const DuplicatesPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
-      <NavigationHeader title="Duplicate Management" showBuildButton={true} />
+      <NavigationHeader title="Duplicate Management" showBuildButton={true} showParserTesterButton={true} />
       <div className="container mx-auto py-8 px-4">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold mb-4 bg-gradient-primary bg-clip-text text-transparent">

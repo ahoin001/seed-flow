@@ -6,11 +6,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { ArrowRight, Plus, Trash2, Settings, Check, X, Edit } from "lucide-react";
+import { ArrowRight, Plus, Trash2, Settings, Check, X, Edit, FileText, Cog } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { FormState } from "@/pages/ProductFlow";
+import { AmazonHtmlParser } from "./AmazonHtmlParser";
 
 interface EnhancedVariantOptionsTabProps {
   formState: FormState;
@@ -353,6 +355,26 @@ export const EnhancedVariantOptionsTab = ({ formState, updateFormState, onComple
     }
   };
 
+  const handleOptionsExtracted = (options: any[]) => {
+    // Convert parsed options to the format expected by the form
+    const selectedOptionTypes = options.map((option, index) => ({
+      id: Date.now() + index, // Generate temporary ID
+      name: option.name,
+      label: option.displayName,
+      data_type: 'select',
+      selectedValues: option.values
+    }));
+    
+    updateFormState({ selectedOptionTypes });
+    toast({
+      title: "Success",
+      description: "Options extracted and applied to the form! Moving to step 3..."
+    });
+    
+    // Mark step 2 as completed and advance to step 3
+    onComplete();
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -362,6 +384,21 @@ export const EnhancedVariantOptionsTab = ({ formState, updateFormState, onComple
           Select the option types and values that will create product variants (e.g., Size, Flavor, etc.)
         </p>
       </div>
+
+      {/* Tabs */}
+      <Tabs defaultValue="manual" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="manual" className="flex items-center gap-2">
+            <Cog className="h-4 w-4" />
+            Manual Setup
+          </TabsTrigger>
+          <TabsTrigger value="parser" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Amazon Parser
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="manual" className="space-y-6">
 
       {/* Option Types Selection */}
         <Card>
@@ -395,7 +432,7 @@ export const EnhancedVariantOptionsTab = ({ formState, updateFormState, onComple
                         <Badge variant="outline" className="mt-1">
                           {optionType.data_type}
                         </Badge>
-                      </div>
+                    </div>
                       {isSelected && <Check className="h-5 w-5 text-primary" />}
             </div>
           </CardContent>
@@ -673,6 +710,12 @@ export const EnhancedVariantOptionsTab = ({ formState, updateFormState, onComple
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+        </TabsContent>
+
+        <TabsContent value="parser" className="space-y-6">
+          <AmazonHtmlParser onOptionsExtracted={handleOptionsExtracted} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

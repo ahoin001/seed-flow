@@ -1,10 +1,15 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   Package, 
   Barcode, 
@@ -17,7 +22,11 @@ import {
   ExternalLink,
   AlertTriangle,
   CheckCircle,
-  Info
+  Info,
+  Edit3,
+  Save,
+  X,
+  Loader2
 } from "lucide-react";
 
 interface ProductVariant {
@@ -57,28 +66,155 @@ interface ScanResultsPopupProps {
 }
 
 export const ScanResultsPopup = ({ isOpen, onClose, variant, productModel }: ScanResultsPopupProps) => {
-  if (!variant || !productModel) return null;
+  const { toast } = useToast();
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState<string>("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [localVariant, setLocalVariant] = useState<ProductVariant | null>(null);
+  const [localProductModel, setLocalProductModel] = useState<ProductModel | null>(null);
+
+  // Initialize local state when props change
+  useEffect(() => {
+    if (variant && productModel) {
+      setLocalVariant({ ...variant });
+      setLocalProductModel({ ...productModel });
+    }
+  }, [variant, productModel]);
+
+
+  if (!localVariant || !localProductModel) return null;
+
+  // Inline editing functions
+  const startEditing = (field: string, currentValue: string) => {
+    setEditingField(field);
+    setEditValue(currentValue || "");
+  };
+
+  const cancelEditing = () => {
+    setEditingField(null);
+    setEditValue("");
+  };
+
+  const saveField = async (field: string, value: string) => {
+    if (!localVariant) return;
+
+    setIsSaving(true);
+    try {
+      let updateData: any = {};
+      
+      // Map field names to database columns
+      switch (field) {
+        case 'variant_name_suffix':
+          updateData.variant_name_suffix = value;
+          break;
+        case 'form_factor':
+          updateData.form_factor = value;
+          break;
+        case 'package_size_value':
+          updateData.package_size_value = parseFloat(value) || null;
+          break;
+        case 'package_size_unit':
+          updateData.package_size_unit = value;
+          break;
+        case 'ingredient_list_text':
+          updateData.ingredient_list_text = value;
+          break;
+        case 'image_url':
+          updateData.image_url = value;
+          break;
+        case 'product_name':
+          updateData.name = value;
+          break;
+        case 'base_description':
+          updateData.base_description = value;
+          break;
+        case 'brand_name':
+          updateData.name = value;
+          break;
+        case 'manufacturer':
+          updateData.manufacturer = value;
+          break;
+        case 'website_url':
+          updateData.website_url = value;
+          break;
+        case 'country_of_origin':
+          updateData.country_of_origin = value;
+          break;
+      }
+
+      // Update the appropriate table
+      if (['product_name', 'base_description'].includes(field)) {
+        const { error } = await supabase
+          .from('product_models')
+          .update(updateData)
+          .eq('id', localProductModel.id);
+        
+        if (error) throw error;
+        
+        setLocalProductModel(prev => prev ? { ...prev, ...updateData } : null);
+      } else if (['brand_name', 'manufacturer', 'website_url', 'country_of_origin'].includes(field)) {
+        const { error } = await supabase
+          .from('brands')
+          .update(updateData)
+          .eq('id', localProductModel.brand.id);
+        
+        if (error) throw error;
+        
+        setLocalProductModel(prev => prev ? {
+          ...prev,
+          brand: { ...prev.brand, ...updateData }
+        } : null);
+      } else {
+        const { error } = await supabase
+          .from('product_variants')
+          .update(updateData)
+          .eq('id', localVariant.id);
+        
+        if (error) throw error;
+        
+        // Update local variant state immediately
+        setLocalVariant(prev => prev ? { ...prev, ...updateData } : null);
+      }
+
+      toast({
+        title: "Success",
+        description: "Field updated successfully",
+      });
+
+      setEditingField(null);
+      setEditValue("");
+    } catch (error) {
+      console.error('Error updating field:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update field",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const formatPackageSize = () => {
-    if (variant.package_size_value && variant.package_size_unit) {
-      return `${variant.package_size_value} ${variant.package_size_unit}`;
+    if (localVariant.package_size_value && localVariant.package_size_unit) {
+      return `${localVariant.package_size_value} ${localVariant.package_size_unit}`;
     }
     return "Not specified";
   };
 
   const formatIngredients = () => {
-    if (variant.ingredient_list_text) {
-      return variant.ingredient_list_text;
+    if (localVariant.ingredient_list_text) {
+      return localVariant.ingredient_list_text;
     }
-    if (variant.first_five_ingredients && variant.first_five_ingredients.length > 0) {
-      return variant.first_five_ingredients.join(", ");
+    if (localVariant.first_five_ingredients && localVariant.first_five_ingredients.length > 0) {
+      return localVariant.first_five_ingredients.join(", ");
     }
     return "Ingredients not available";
   };
 
   const getBarcodeInfo = () => {
-    if (variant.barcodes && variant.barcodes.length > 0) {
-      const primaryBarcode = variant.barcodes.find(b => b.is_primary) || variant.barcodes[0];
+    if (localVariant.barcodes && localVariant.barcodes.length > 0) {
+      const primaryBarcode = localVariant.barcodes.find(b => b.is_primary) || localVariant.barcodes[0];
       return {
         barcode: primaryBarcode.barcode,
         type: primaryBarcode.barcode_type,
@@ -89,6 +225,108 @@ export const ScanResultsPopup = ({ isOpen, onClose, variant, productModel }: Sca
   };
 
   const barcodeInfo = getBarcodeInfo();
+
+  // Inline edit field component
+  const InlineEditField = ({ 
+    field, 
+    value, 
+    label, 
+    type = "text", 
+    options = null,
+    className = "",
+    placeholder = ""
+  }: {
+    field: string;
+    value: string;
+    label: string;
+    type?: "text" | "textarea" | "select" | "number";
+    options?: { value: string; label: string }[] | null;
+    className?: string;
+    placeholder?: string;
+  }) => {
+    const isEditing = editingField === field;
+    const displayValue = value || placeholder || "Not specified";
+
+    if (isEditing) {
+      return (
+        <div className="space-y-2">
+          <Label className="text-sm font-medium text-muted-foreground">{label}</Label>
+          <div className="flex items-center gap-2">
+            {type === "textarea" ? (
+              <Textarea
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                className="flex-1"
+                rows={3}
+                placeholder={placeholder}
+              />
+            ) : type === "select" && options ? (
+              <Select value={editValue} onValueChange={setEditValue}>
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder="Select..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {options.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Input
+                type={type}
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                className="flex-1"
+                placeholder={placeholder}
+              />
+            )}
+            <Button
+              size="sm"
+              onClick={() => saveField(field, editValue)}
+              disabled={isSaving}
+              className="h-8 w-8 p-0"
+            >
+              {isSaving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={cancelEditing}
+              disabled={isSaving}
+              className="h-8 w-8 p-0"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className={`group ${className}`}>
+        <Label className="text-sm font-medium text-muted-foreground">{label}</Label>
+        <div className="flex items-center justify-between min-h-[2rem]">
+          <p className={`text-lg font-semibold flex-1 ${!value ? 'text-muted-foreground' : ''}`}>
+            {displayValue}
+          </p>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => startEditing(field, value)}
+            className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 p-0 ml-2 flex-shrink-0"
+          >
+            <Edit3 className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -106,30 +344,44 @@ export const ScanResultsPopup = ({ isOpen, onClose, variant, productModel }: Sca
         <div className="space-y-6">
           {/* Header Section */}
           <Card className="bg-primary/5 border-primary/20 shadow-sm">
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div className="space-y-2">
-                  <CardTitle className="text-2xl font-bold text-foreground">
-                    {productModel?.name}
-                  </CardTitle>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="bg-white">
-                      {productModel?.brand.name}
-                    </Badge>
-                    <Badge variant="secondary">
-                      {productModel?.species}
-                    </Badge>
-                    <Badge variant="outline">
-                      {productModel?.life_stage}
-                    </Badge>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm text-muted-foreground">Variant</div>
-                  <div className="font-semibold">
-                    {variant.variant_name_suffix || "Default"}
-                  </div>
-                </div>
+            <CardHeader className="space-y-4">
+              {/* Product Name - Full Width */}
+              <div>
+                <InlineEditField
+                  field="product_name"
+                  value={localProductModel.name}
+                  label="Product Name"
+                  className="w-full"
+                />
+              </div>
+              
+              {/* Brand and Variant - Side by Side */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <InlineEditField
+                  field="brand_name"
+                  value={localProductModel.brand.name}
+                  label="Brand"
+                  className="w-full"
+                />
+                <InlineEditField
+                  field="variant_name_suffix"
+                  value={localVariant.variant_name_suffix}
+                  label="Variant"
+                  placeholder="Default"
+                  className="w-full"
+                />
+              </div>
+              
+              {/* Species and Life Stage Badges */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="secondary" className="text-sm">
+                  {localProductModel.species}
+                </Badge>
+                <Badge variant="outline" className="text-sm">
+                  {Array.isArray(localProductModel.life_stage) 
+                    ? localProductModel.life_stage.join(', ') 
+                    : localProductModel.life_stage}
+                </Badge>
               </div>
             </CardHeader>
           </Card>
@@ -143,18 +395,77 @@ export const ScanResultsPopup = ({ isOpen, onClose, variant, productModel }: Sca
                   Product Image
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                {variant.image_url ? (
+              <CardContent className="space-y-4">
+                {/* Image Preview */}
+                {localVariant.image_url ? (
                   <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
                     <img 
-                      src={variant.image_url} 
-                      alt={productModel.name}
+                      key={localVariant.image_url} // Force re-render when URL changes
+                      src={localVariant.image_url} 
+                      alt={localProductModel.name}
                       className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                      }}
                     />
+                    <div className="hidden aspect-square bg-gray-100 rounded-lg flex items-center justify-center">
+                      <Image className="h-12 w-12 text-gray-400" />
+                    </div>
                   </div>
                 ) : (
                   <div className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center">
                     <Image className="h-12 w-12 text-gray-400" />
+                  </div>
+                )}
+                
+                {/* Edit Image URL Button */}
+                <div className="flex justify-center">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => startEditing('image_url', localVariant.image_url || '')}
+                    className="text-xs"
+                  >
+                    <Edit3 className="h-3 w-3 mr-1" />
+                    Edit Image URL
+                  </Button>
+                </div>
+                
+                {/* Image URL Field - Only show when editing */}
+                {editingField === 'image_url' && (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-muted-foreground">Image URL</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="text"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        className="flex-1"
+                        placeholder="https://example.com/image.jpg"
+                      />
+                      <Button
+                        size="sm"
+                        onClick={() => saveField('image_url', editValue)}
+                        disabled={isSaving}
+                        className="h-8 w-8 p-0"
+                      >
+                        {isSaving ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Save className="h-4 w-4" />
+                        )}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={cancelEditing}
+                        disabled={isSaving}
+                        className="h-8 w-8 p-0"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 )}
               </CardContent>
@@ -168,34 +479,58 @@ export const ScanResultsPopup = ({ isOpen, onClose, variant, productModel }: Sca
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Form Factor</Label>
-                  <p className="text-lg font-semibold">
-                    {variant.form_factor || "Not specified"}
-                  </p>
-                </div>
+                <InlineEditField
+                  field="form_factor"
+                  value={localVariant.form_factor}
+                  label="Form Factor"
+                  type="select"
+                  options={[
+                    { value: 'dehydrated', label: 'Dehydrated' },
+                    { value: 'dry kibble', label: 'Dry Kibble' },
+                    { value: 'freeze-dried', label: 'Freeze-Dried' },
+                    { value: 'raw frozen', label: 'Raw Frozen' },
+                    { value: 'semi-moist', label: 'Semi-Moist' },
+                    { value: 'topper', label: 'Topper' },
+                    { value: 'treats', label: 'Treats' },
+                    { value: 'wet chunks', label: 'Wet Chunks' },
+                    { value: 'wet pâté', label: 'Wet Pâté' },
+                    { value: 'wet shreds', label: 'Wet Shreds' },
+                    { value: 'wet stew', label: 'Wet Stew' }
+                  ]}
+                />
                 
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Package Size</Label>
-                  <p className="text-lg font-semibold flex items-center gap-2">
-                    <Scale className="h-4 w-4" />
-                    {formatPackageSize()}
-                  </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <InlineEditField
+                    field="package_size_value"
+                    value={localVariant.package_size_value?.toString()}
+                    label="Package Size Value"
+                    type="number"
+                    placeholder="0"
+                  />
+                  <InlineEditField
+                    field="package_size_unit"
+                    value={localVariant.package_size_unit}
+                    label="Package Size Unit"
+                    type="select"
+                    options={[
+                      { value: 'can', label: 'Cans' },
+                      { value: 'cup', label: 'Cups' },
+                      { value: 'g', label: 'Grams' },
+                      { value: 'kg', label: 'Kilograms' },
+                      { value: 'l', label: 'Liters' },
+                      { value: 'lb', label: 'Pounds' },
+                      { value: 'ml', label: 'Milliliters' },
+                      { value: 'oz', label: 'Ounces' },
+                      { value: 'pouch', label: 'Pouches' }
+                    ]}
+                  />
                 </div>
 
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Brand</Label>
-                  <p className="text-lg font-semibold">
-                    {productModel.brand.name}
-                  </p>
-                </div>
-
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Manufacturer</Label>
-                  <p className="text-sm">
-                    {productModel.brand.manufacturer || "Not specified"}
-                  </p>
-                </div>
+                <InlineEditField
+                  field="manufacturer"
+                  value={localProductModel.brand.manufacturer}
+                  label="Manufacturer"
+                />
               </CardContent>
             </Card>
           </div>
@@ -243,16 +578,19 @@ export const ScanResultsPopup = ({ isOpen, onClose, variant, productModel }: Sca
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="bg-muted/20 p-4 rounded-lg border border-border/50">
-                <p className="text-sm leading-relaxed">
-                  {formatIngredients()}
-                </p>
-              </div>
-              {variant.first_five_ingredients && variant.first_five_ingredients.length > 0 && (
+              <InlineEditField
+                field="ingredient_list_text"
+                value={localVariant.ingredient_list_text}
+                label="Ingredient List"
+                type="textarea"
+                placeholder="Enter ingredient list..."
+                className="mb-4"
+              />
+              {localVariant.first_five_ingredients && localVariant.first_five_ingredients.length > 0 && (
                 <div className="mt-4">
                   <Label className="text-sm font-medium text-muted-foreground">First 5 Ingredients</Label>
                   <div className="flex flex-wrap gap-2 mt-2">
-                    {variant.first_five_ingredients.map((ingredient, index) => (
+                    {localVariant.first_five_ingredients.map((ingredient, index) => (
                       <Badge key={index} variant="outline">
                         {ingredient}
                       </Badge>
@@ -264,7 +602,7 @@ export const ScanResultsPopup = ({ isOpen, onClose, variant, productModel }: Sca
           </Card>
 
           {/* Product Options */}
-          {variant.options && variant.options.length > 0 && (
+          {localVariant.options && localVariant.options.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -274,7 +612,7 @@ export const ScanResultsPopup = ({ isOpen, onClose, variant, productModel }: Sca
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {variant.options.map((option, index) => (
+                  {localVariant.options.map((option, index) => (
                     <div key={index} className="flex justify-between items-center p-3 bg-muted/20 rounded-lg border border-border/50">
                       <span className="font-medium">{option.option_type_name}</span>
                       <Badge variant="secondary">{option.value}</Badge>
@@ -295,35 +633,51 @@ export const ScanResultsPopup = ({ isOpen, onClose, variant, productModel }: Sca
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Brand Name</Label>
-                  <p className="text-lg font-semibold">{productModel.brand.name}</p>
+                <InlineEditField
+                  field="brand_name"
+                  value={localProductModel.brand.name}
+                  label="Brand Name"
+                />
+                <InlineEditField
+                  field="country_of_origin"
+                  value={localProductModel.brand.country_of_origin}
+                  label="Country of Origin"
+                />
+                <div className="md:col-span-2">
+                  <InlineEditField
+                    field="website_url"
+                    value={localProductModel.brand.website_url}
+                    label="Website"
+                    placeholder="https://example.com"
+                  />
                 </div>
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Country of Origin</Label>
-                  <p className="text-sm">{productModel.brand.country_of_origin || "Not specified"}</p>
-                </div>
-                {productModel.brand.website_url && (
-                  <div className="md:col-span-2">
-                    <Label className="text-sm font-medium text-muted-foreground">Website</Label>
-                    <a 
-                      href={productModel.brand.website_url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 underline"
-                    >
-                      {productModel.brand.website_url}
-                    </a>
-                  </div>
-                )}
               </div>
             </CardContent>
           </Card>
 
-          {/* Data Quality Indicators */}
-          <Card className="bg-yellow-50 border-yellow-200">
+          {/* Product Description */}
+          <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-yellow-800">
+              <CardTitle className="flex items-center gap-2">
+                <Info className="h-4 w-4" />
+                Product Description
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <InlineEditField
+                field="base_description"
+                value={localProductModel.base_description}
+                label="Description"
+                type="textarea"
+                placeholder="Enter product description..."
+              />
+            </CardContent>
+          </Card>
+
+          {/* Data Quality Indicators */}
+          <Card className="bg-muted/20 border-border/50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-foreground">
                 <Activity className="h-4 w-4" />
                 Data Quality
               </CardTitle>
@@ -331,7 +685,7 @@ export const ScanResultsPopup = ({ isOpen, onClose, variant, productModel }: Sca
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="flex items-center gap-2">
-                  {variant.image_url ? (
+                  {localVariant.image_url ? (
                     <CheckCircle className="h-4 w-4 text-green-600" />
                   ) : (
                     <AlertTriangle className="h-4 w-4 text-yellow-600" />
@@ -339,7 +693,7 @@ export const ScanResultsPopup = ({ isOpen, onClose, variant, productModel }: Sca
                   <span className="text-sm">Image Available</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  {variant.ingredient_list_text ? (
+                  {localVariant.ingredient_list_text ? (
                     <CheckCircle className="h-4 w-4 text-green-600" />
                   ) : (
                     <AlertTriangle className="h-4 w-4 text-yellow-600" />
