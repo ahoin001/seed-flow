@@ -317,7 +317,12 @@ export function AmazonVariantPrefillParser({ onExtract, onClose }: AmazonVariant
 
   const handleUseData = () => {
     if (extractedData && onExtract) {
-      onExtract(extractedData);
+      // Add parsed Item Form to the extracted data
+      const dataWithItemForm = {
+        ...extractedData,
+        parsedItemForm: extractedData.productDetails.itemForm
+      };
+      onExtract(dataWithItemForm);
       toast({
         title: "Success",
         description: "Data extracted and ready to use."

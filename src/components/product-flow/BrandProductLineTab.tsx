@@ -9,11 +9,22 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowRight, Plus, Building2, Package, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { FormState } from "@/pages/ProductFlow";
+interface AmazonFormState {
+  brandId?: number;
+  productLineId?: number;
+  brand?: any;
+  productLine?: any;
+  parsedOptions: any[];
+  selectedOptionTypes: any[];
+  selectedVariants: any[];
+  configuredVariants: any[];
+  completedTabs: string[];
+  parsedItemForm?: string;
+}
 
 interface BrandProductLineTabProps {
-  formState: FormState;
-  updateFormState: (updates: Partial<FormState>) => void;
+  formState: AmazonFormState;
+  updateFormState: (updates: Partial<AmazonFormState>) => void;
   onComplete: () => void;
 }
 

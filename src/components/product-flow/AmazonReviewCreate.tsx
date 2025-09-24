@@ -2,7 +2,11 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Package, Image, Tag, List, Globe } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CheckCircle, Package, Image, Tag, List, Globe, Edit, Save, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -14,7 +18,69 @@ interface AmazonReviewCreateProps {
 
 export const AmazonReviewCreate = ({ formState, updateFormState, onComplete }: AmazonReviewCreateProps) => {
   const [isCreating, setIsCreating] = useState(false);
+  const [editingVariant, setEditingVariant] = useState<number | null>(null);
+  const [editedVariants, setEditedVariants] = useState<any[]>([]);
   const { toast } = useToast();
+
+  // Form factor options for inline editing
+  const FORM_FACTOR_OPTIONS = [
+    { value: "dehydrated", label: "Dehydrated" },
+    { value: "dry kibble", label: "Dry Kibble" },
+    { value: "freeze-dried", label: "Freeze-Dried" },
+    { value: "raw frozen", label: "Raw Frozen" },
+    { value: "semi-moist", label: "Semi-Moist" },
+    { value: "topper", label: "Topper" },
+    { value: "treats", label: "Treats" },
+    { value: "wet chunks", label: "Wet Chunks" },
+    { value: "wet pâté", label: "Wet Pâté" },
+    { value: "wet shreds", label: "Wet Shreds" },
+    { value: "wet stew", label: "Wet Stew" }
+  ];
+
+  const PACKAGE_SIZE_UNITS = [
+    { value: "can", label: "Cans" },
+    { value: "cup", label: "Cups" },
+    { value: "g", label: "Grams (g)" },
+    { value: "kg", label: "Kilograms (kg)" },
+    { value: "l", label: "Liters (l)" },
+    { value: "lb", label: "Pounds (lb)" },
+    { value: "ml", label: "Milliliters (ml)" },
+    { value: "oz", label: "Ounces (oz)" },
+    { value: "pouch", label: "Pouches" }
+  ];
+
+  // Initialize edited variants from form state
+  const getCurrentVariants = () => {
+    return editedVariants.length > 0 ? editedVariants : formState.configuredVariants || [];
+  };
+
+  const startEditing = (index: number) => {
+    setEditingVariant(index);
+    if (editedVariants.length === 0) {
+      setEditedVariants([...formState.configuredVariants]);
+    }
+  };
+
+  const cancelEditing = () => {
+    setEditingVariant(null);
+  };
+
+  const saveEditing = (index: number) => {
+    setEditingVariant(null);
+    updateFormState({ configuredVariants: editedVariants });
+    toast({
+      title: "Success",
+      description: "Variant updated successfully."
+    });
+  };
+
+  const updateVariantField = (index: number, field: string, value: any) => {
+    setEditedVariants(prev => 
+      prev.map((variant, i) => 
+        i === index ? { ...variant, [field]: value } : variant
+      )
+    );
+  };
 
   const handleCreateProduct = async () => {
     if (!formState.configuredVariants || formState.configuredVariants.length === 0) {
@@ -28,55 +94,30 @@ export const AmazonReviewCreate = ({ formState, updateFormState, onComplete }: A
 
     setIsCreating(true);
     try {
-      // Use brand from form state or create default
-      let brandId;
-      if (formState.brand?.id) {
-        brandId = formState.brand.id;
-      } else {
-        const { data: brand, error: brandError } = await supabase
-          .from('brands')
-          .insert({
-            name: formState.brand?.name || 'Amazon Product Brand',
-            description: formState.brand?.description || 'Brand created from Amazon product data'
-          })
-          .select('id')
-          .single();
-
-        if (brandError) throw brandError;
-        brandId = brand.id;
+      // Brand and product model should already be created in step 1
+      if (!formState.brandId || !formState.productLineId) {
+        throw new Error('Brand and product line must be set up in step 1 before creating products');
       }
-
-      // Create product model
-      const { data: productModel, error: modelError } = await supabase
-        .from('product_models')
-        .insert({
-          brand_id: brandId,
-          name: formState.productLine?.name || formState.configuredVariants[0]?.customName || 'Amazon Product',
-          description: formState.productLine?.description || formState.configuredVariants[0]?.description || '',
-          image_url: formState.productLine?.image_url || formState.configuredVariants[0]?.imageUrl || null,
-          form_factor: formState.productLine?.form_factor || formState.configuredVariants[0]?.formFactor || 'dry',
-          package_size: parseFloat(formState.productLine?.package_size || formState.configuredVariants[0]?.packageSize || '0'),
-          package_size_unit: formState.productLine?.package_size_unit || formState.configuredVariants[0]?.packageSizeUnit || 'lb'
-        })
-        .select('id')
-        .single();
-
-      if (modelError) throw modelError;
 
       // Create variants
       for (const variant of formState.configuredVariants) {
         const { data: productVariant, error: variantError } = await supabase
           .from('product_variants')
           .insert({
-            product_model_id: productModel.id,
-            variant_name: variant.name,
-            variant_name_suffix: variant.customName,
+            model_id: formState.productLineId,
+            variant_name_suffix: variant.customName || variant.name,
             image_url: variant.imageUrl || null,
-            form_factor: variant.formFactor,
-            package_size: parseFloat(variant.packageSize || '0'),
-            package_size_unit: variant.packageSizeUnit,
-            description: variant.description || '',
-            data_confidence: 0.8
+            form_factor: variant.formFactor || 'dry kibble',
+            package_size_value: parseFloat(variant.packageSize || '1'),
+            package_size_unit: variant.packageSizeUnit || 'lb',
+            ingredient_list_text: variant.ingredients || 'Ingredients not specified',
+            price: variant.price || null,
+            cost: variant.cost || null,
+            stock_status: variant.stockStatus || 'unknown',
+            average_rating: variant.averageRating || null,
+            review_count: variant.reviewCount || 0,
+            created_by: 'amazon_flow',
+            data_confidence: 80
           })
           .select('id')
           .single();
@@ -89,62 +130,18 @@ export const AmazonReviewCreate = ({ formState, updateFormState, onComplete }: A
             await supabase
               .from('barcodes')
               .insert({
-                product_variant_id: productVariant.id,
+                variant_id: productVariant.id,
+                barcode: identifier.value,
                 barcode_type: identifier.type.toLowerCase(),
-                barcode_value: identifier.value,
-                is_primary: false
+                is_primary: false,
+                is_verified: false,
+                is_active: true
               });
           }
         }
 
-        // Create ingredients if provided
-        if (variant.ingredients) {
-          const ingredientNames = variant.ingredients.split(',').map((ing: string) => ing.trim());
-          
-          for (const ingredientName of ingredientNames) {
-            if (ingredientName) {
-              // Check if ingredient exists
-              const { data: existingIngredient } = await supabase
-                .from('ingredients')
-                .select('id')
-                .eq('name', ingredientName)
-                .single();
-
-              let ingredientId;
-              if (existingIngredient) {
-                ingredientId = existingIngredient.id;
-              } else {
-                const { data: newIngredient, error: ingredientError } = await supabase
-                  .from('ingredients')
-                  .insert({
-                    name: ingredientName,
-                    is_toxic: false,
-                    is_controversial: false,
-                    tags: []
-                  })
-                  .select('id')
-                  .single();
-
-                if (ingredientError) throw ingredientError;
-                ingredientId = newIngredient.id;
-              }
-
-              // Link ingredient to variant
-              await supabase
-                .from('variant_ingredients')
-                .insert({
-                  variant_id: productVariant.id,
-                  ingredient_id: ingredientId
-                });
-            }
-          }
-        }
+        // Ingredients are already stored in ingredient_list_text field above
       }
-
-      toast({
-        title: "Success",
-        description: `Created product with ${formState.configuredVariants.length} variant${formState.configuredVariants.length !== 1 ? 's' : ''} successfully!`
-      });
 
       onComplete();
       
@@ -202,13 +199,56 @@ export const AmazonReviewCreate = ({ formState, updateFormState, onComplete }: A
       {/* Variants Review */}
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Configured Variants</h3>
-        {formState.configuredVariants?.map((variant: any, index: number) => (
+        {getCurrentVariants().map((variant: any, index: number) => (
           <Card key={index} className="border-l-4 border-l-primary/20">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Package className="h-5 w-5" />
-                {variant.customName || variant.name}
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Package className="h-5 w-5" />
+                  {editingVariant === index ? (
+                    <Input
+                      value={variant.customName || variant.name}
+                      onChange={(e) => updateVariantField(index, 'customName', e.target.value)}
+                      className="font-semibold"
+                    />
+                  ) : (
+                    variant.customName || variant.name
+                  )}
+                </CardTitle>
+                <div className="flex gap-2">
+                  {editingVariant === index ? (
+                    <>
+                      <Button
+                        size="sm"
+                        onClick={() => saveEditing(index)}
+                        className="gap-1"
+                      >
+                        <Save className="h-3 w-3" />
+                        Save
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={cancelEditing}
+                        className="gap-1"
+                      >
+                        <X className="h-3 w-3" />
+                        Cancel
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => startEditing(index)}
+                      className="gap-1"
+                    >
+                      <Edit className="h-3 w-3" />
+                      Edit
+                    </Button>
+                  )}
+                </div>
+              </div>
               <CardDescription>
                 {Object.entries(variant.values || {}).map(([key, value]) => (
                   <Badge key={key} variant="outline" className="mr-1">
@@ -231,11 +271,55 @@ export const AmazonReviewCreate = ({ formState, updateFormState, onComplete }: A
                 <div className="flex items-center gap-2">
                   <Package className="h-4 w-4 text-muted-foreground" />
                   <span className="font-medium">Form:</span>
-                  <Badge variant="secondary">{variant.formFactor}</Badge>
+                  {editingVariant === index ? (
+                    <Select
+                      value={variant.formFactor}
+                      onValueChange={(value) => updateVariantField(index, 'formFactor', value)}
+                    >
+                      <SelectTrigger className="w-32">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {FORM_FACTOR_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Badge variant="secondary">{variant.formFactor}</Badge>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="font-medium">Size:</span>
-                  <Badge variant="outline">{variant.packageSize} {variant.packageSizeUnit}</Badge>
+                  {editingVariant === index ? (
+                    <div className="flex items-center gap-1">
+                      <Input
+                        value={variant.packageSize || ''}
+                        onChange={(e) => updateVariantField(index, 'packageSize', e.target.value)}
+                        className="w-16 h-6 text-xs"
+                        placeholder="Size"
+                      />
+                      <Select
+                        value={variant.packageSizeUnit}
+                        onValueChange={(value) => updateVariantField(index, 'packageSizeUnit', value)}
+                      >
+                        <SelectTrigger className="w-20 h-6 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PACKAGE_SIZE_UNITS.map((unit) => (
+                            <SelectItem key={unit.value} value={unit.value}>
+                              {unit.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ) : (
+                    <Badge variant="outline">{variant.packageSize} {variant.packageSizeUnit}</Badge>
+                  )}
                 </div>
               </div>
 
@@ -268,12 +352,22 @@ export const AmazonReviewCreate = ({ formState, updateFormState, onComplete }: A
               )}
 
               {/* Description */}
-              {variant.description && (
-                <div>
-                  <span className="text-sm font-medium">Description:</span>
-                  <p className="text-sm text-muted-foreground mt-1">{variant.description}</p>
-                </div>
-              )}
+              <div>
+                <span className="text-sm font-medium">Description:</span>
+                {editingVariant === index ? (
+                  <Textarea
+                    value={variant.description || ''}
+                    onChange={(e) => updateVariantField(index, 'description', e.target.value)}
+                    placeholder="Enter product description..."
+                    className="mt-1 text-sm"
+                    rows={2}
+                  />
+                ) : (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {variant.description || 'No description provided'}
+                  </p>
+                )}
+              </div>
             </CardContent>
           </Card>
         ))}

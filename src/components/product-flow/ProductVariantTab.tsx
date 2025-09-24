@@ -83,6 +83,27 @@ const FORM_FACTOR_OPTIONS = [
   { value: "wet stew", label: "Wet Stew", description: "Wet food in gravy/sauce" }
 ];
 
+// Function to map Amazon Item Form to our form factors
+const mapItemFormToFormFactor = (itemForm: string): string => {
+  const form = itemForm.toLowerCase();
+  
+  // Direct matches
+  if (form.includes('dry') || form.includes('kibble')) return 'dry kibble';
+  if (form.includes('wet') && form.includes('chunk')) return 'wet chunks';
+  if (form.includes('wet') && form.includes('pâté')) return 'wet pâté';
+  if (form.includes('wet') && form.includes('shred')) return 'wet shreds';
+  if (form.includes('wet') && form.includes('stew')) return 'wet stew';
+  if (form.includes('freeze-dried')) return 'freeze-dried';
+  if (form.includes('dehydrated')) return 'dehydrated';
+  if (form.includes('raw') && form.includes('frozen')) return 'raw frozen';
+  if (form.includes('semi-moist')) return 'semi-moist';
+  if (form.includes('treat')) return 'treats';
+  if (form.includes('topper')) return 'topper';
+  
+  // Default to dry kibble if no match
+  return 'dry kibble';
+};
+
 // Package size unit options (alphabetized)
 const PACKAGE_SIZE_UNITS = [
   { value: "can", label: "Cans" },
@@ -224,6 +245,9 @@ export const ProductVariantTab = ({ formState, updateFormState, onComplete }: Pr
   // Nutrition state
   const [nutritionalAttributes, setNutritionalAttributes] = useState<NutritionalAttribute[]>([]);
   
+  // Dynamic form factor options (includes saved custom ones)
+  const [dynamicFormFactorOptions, setDynamicFormFactorOptions] = useState(FORM_FACTOR_OPTIONS);
+  
   const [newVariant, setNewVariant] = useState<VariantData>({
     variant_name_suffix: "",
     image_url: "",
@@ -243,7 +267,19 @@ export const ProductVariantTab = ({ formState, updateFormState, onComplete }: Pr
     fetchCategories();
     fetchIngredients();
     fetchNutritionalAttributes();
-  }, [formState.selectedOptionTypes, dontGenerateAll, selectedCombinations]);
+    
+    // Apply parsed Item Form data if available
+    if (formState.parsedItemForm) {
+      const mappedFormFactor = mapItemFormToFormFactor(formState.parsedItemForm);
+      setGlobalFormFactor(mappedFormFactor);
+      
+      // Check if this form factor exists in our options, if not save it
+      const existingOption = dynamicFormFactorOptions.find(opt => opt.value === mappedFormFactor);
+      if (!existingOption) {
+        saveNewFormFactor(formState.parsedItemForm, mappedFormFactor);
+      }
+    }
+  }, [formState.selectedOptionTypes, dontGenerateAll, selectedCombinations, formState.parsedItemForm]);
 
   useEffect(() => {
     const filtered = availableIngredients.filter(ingredient =>
@@ -526,7 +562,10 @@ export const ProductVariantTab = ({ formState, updateFormState, onComplete }: Pr
         .select("id, name, is_toxic, is_controversial, tags")
         .order("name");
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching ingredients:", error);
+        return;
+      }
       setAvailableIngredients(data || []);
     } catch (error) {
       console.error("Error fetching ingredients:", error);
@@ -540,10 +579,33 @@ export const ProductVariantTab = ({ formState, updateFormState, onComplete }: Pr
         .select("id, name, display_name, unit, data_type")
         .order("name");
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching nutritional attributes:", error);
+        return;
+      }
       setNutritionalAttributes(data || []);
     } catch (error) {
       console.error("Error fetching nutritional attributes:", error);
+    }
+  };
+
+  const saveNewFormFactor = async (originalItemForm: string, mappedFormFactor: string) => {
+    try {
+      // Add to dynamic options
+      const newOption = {
+        value: mappedFormFactor,
+        label: originalItemForm,
+        description: `Custom form factor from Amazon: ${originalItemForm}`
+      };
+      
+      setDynamicFormFactorOptions(prev => [...prev, newOption]);
+      
+      toast({
+        title: "New Form Factor Added",
+        description: `Added "${originalItemForm}" as a form factor option.`
+      });
+    } catch (error) {
+      console.error("Error saving new form factor:", error);
     }
   };
 
@@ -573,6 +635,9 @@ export const ProductVariantTab = ({ formState, updateFormState, onComplete }: Pr
       package_size_unit: "",
       barcodes: [],
       optionValues: {},
+      categories: [],
+      ingredients: [],
+      nutrition: {},
       isActive: true
     });
     setShowAddVariant(false);
@@ -659,7 +724,7 @@ export const ProductVariantTab = ({ formState, updateFormState, onComplete }: Pr
                     <SelectValue placeholder="Select food type for all variants..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {FORM_FACTOR_OPTIONS.map((option) => (
+                    {dynamicFormFactorOptions.map((option) => (
                       <SelectItem key={option.value} value={option.value}>
                         <div>
                           <div className="font-medium">{option.label}</div>
@@ -891,7 +956,7 @@ export const ProductVariantTab = ({ formState, updateFormState, onComplete }: Pr
                     <SelectValue placeholder="Select food type..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {FORM_FACTOR_OPTIONS.map((option) => (
+                    {dynamicFormFactorOptions.map((option) => (
                       <SelectItem key={option.value} value={option.value}>
                         <div>
                           <div className="font-medium">{option.label}</div>
@@ -1017,7 +1082,7 @@ export const ProductVariantTab = ({ formState, updateFormState, onComplete }: Pr
                       <SelectValue placeholder="Select food type..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {FORM_FACTOR_OPTIONS.map((option) => (
+                      {dynamicFormFactorOptions.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
                           <div>
                             <div className="font-medium">{option.label}</div>

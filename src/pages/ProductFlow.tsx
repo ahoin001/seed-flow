@@ -39,6 +39,7 @@ export interface FormState {
     };
   }>;
   normalizedProductData?: any;
+  parsedItemForm?: string;
 }
 
 const ProductFlow = () => {

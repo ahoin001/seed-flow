@@ -344,10 +344,19 @@ export const AmazonVariantPrefillModal = ({ isOpen, onClose, onPrefill }: Amazon
       if (data.identifiers.length > 0) extractedFields.push(`${data.identifiers.length} identifier${data.identifiers.length !== 1 ? 's' : ''}`);
       if (data.ingredients) extractedFields.push("ingredients");
       
+      // Automatically apply the parsed data
+      onPrefill(data);
+      
       toast({
         title: "Success",
-        description: `Product data extracted successfully! Found: ${extractedFields.join(', ')}`
+        description: `Product data extracted and applied! Found: ${extractedFields.join(', ')}`
       });
+      
+      // Close the modal after successful parsing and application
+      setTimeout(() => {
+        handleClose();
+      }, 1000);
+      
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to parse HTML';
       setParseError(errorMessage);
@@ -356,12 +365,6 @@ export const AmazonVariantPrefillModal = ({ isOpen, onClose, onPrefill }: Amazon
     }
   };
 
-  const handlePrefill = () => {
-    if (parsedData) {
-      onPrefill(parsedData);
-      handleClose();
-    }
-  };
 
   const handleClose = () => {
     setHtmlSnippet("");
@@ -430,10 +433,10 @@ export const AmazonVariantPrefillModal = ({ isOpen, onClose, onPrefill }: Amazon
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-green-600">
                   <CheckCircle className="h-5 w-5" />
-                  Extracted Product Data
+                  Data Applied Successfully
                 </CardTitle>
                 <CardDescription>
-                  Review the extracted data before applying to your variant
+                  The extracted data has been automatically applied to your variant
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -496,14 +499,8 @@ export const AmazonVariantPrefillModal = ({ isOpen, onClose, onPrefill }: Amazon
           {/* Action Buttons */}
           <div className="flex justify-end gap-2 pt-4 border-t">
             <Button variant="outline" onClick={handleClose}>
-              Cancel
+              Close
             </Button>
-            {parsedData && (
-              <Button onClick={handlePrefill} className="gap-2">
-                <CheckCircle className="h-4 w-4" />
-                Apply to Variant
-              </Button>
-            )}
           </div>
         </div>
       </DialogContent>

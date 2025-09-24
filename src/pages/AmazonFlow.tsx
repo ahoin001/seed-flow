@@ -4,16 +4,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Check, Globe, Settings, Package, FileText, Building } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import { BrandProductLineTab } from "@/components/product-flow/BrandProductLineTab";
 import { AmazonHtmlParser } from "@/components/product-flow/AmazonHtmlParser";
 import { AmazonVariantSelector } from "@/components/product-flow/AmazonVariantSelector";
 import { AmazonVariantConfigurator } from "@/components/product-flow/AmazonVariantConfigurator";
 import { AmazonReviewCreate } from "@/components/product-flow/AmazonReviewCreate";
 
-interface FormState {
+interface AmazonFormState {
   // Step 1: Brand and Product Line
-  brand: any;
-  productLine: any;
+  brandId?: number;
+  productLineId?: number;
+  brand?: any;
+  productLine?: any;
   
   // Step 2: Options from Amazon HTML
   parsedOptions: any[];
@@ -27,6 +30,9 @@ interface FormState {
   
   // Completion tracking
   completedTabs: string[];
+  
+  // Additional fields for Amazon flow
+  parsedItemForm?: string;
 }
 
 const tabs = [
@@ -63,8 +69,11 @@ const tabs = [
 ];
 
 export default function AmazonFlow() {
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("brand-product-line");
-  const [formState, setFormState] = useState<FormState>({
+  const [formState, setFormState] = useState<AmazonFormState>({
+    brandId: undefined,
+    productLineId: undefined,
     brand: null,
     productLine: null,
     parsedOptions: [],
@@ -72,9 +81,10 @@ export default function AmazonFlow() {
     selectedVariants: [],
     configuredVariants: [],
     completedTabs: [],
+    parsedItemForm: undefined,
   });
 
-  const updateFormState = (updates: Partial<FormState>) => {
+  const updateFormState = (updates: Partial<AmazonFormState>) => {
     setFormState(prev => ({ ...prev, ...updates }));
   };
 
@@ -87,6 +97,30 @@ export default function AmazonFlow() {
     if (currentIndex < tabs.length - 1) {
       setActiveTab(tabs[currentIndex + 1].id);
     }
+  };
+
+  const handleProductCreated = () => {
+    // Reset form state for fresh start
+    setFormState({
+      brandId: undefined,
+      productLineId: undefined,
+      brand: null,
+      productLine: null,
+      parsedOptions: [],
+      selectedOptionTypes: [],
+      selectedVariants: [],
+      configuredVariants: [],
+      completedTabs: [],
+      parsedItemForm: undefined,
+    });
+    
+    // Redirect to step 1
+    setActiveTab("brand-product-line");
+    
+    toast({
+      title: "Product Created Successfully!",
+      description: "Ready to create another product. Start with step 1.",
+    });
   };
 
   const getCompletionStatus = () => {
@@ -192,7 +226,7 @@ export default function AmazonFlow() {
               <AmazonReviewCreate 
                 formState={formState}
                 updateFormState={updateFormState}
-                onComplete={() => handleTabComplete("review-create")}
+                onComplete={handleProductCreated}
               />
             </TabsContent>
           </Tabs>
