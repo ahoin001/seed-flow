@@ -9,6 +9,7 @@ import { CheckCircle, Package, Tag, Barcode, Leaf, Activity, AlertTriangle } fro
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { FormState } from "@/pages/ProductFlow";
+import { IngredientProcessor } from "@/lib/ingredientProcessor";
 
 interface ReviewCreateTabProps {
   formState: FormState;
@@ -120,6 +121,23 @@ export const ReviewCreateTab = ({ formState, updateFormState, onComplete, onNavi
           .insert(attributeInserts);
 
         if (attributeError) throw attributeError;
+      }
+
+      // Process ingredients for all variants
+      const ingredientProcessingPromises = createdVariants.map(async (createdVariant, index) => {
+        const variant = formState.generatedVariants[index];
+        if (variant.data.ingredients && variant.data.ingredients.length > 0) {
+          const ingredientText = variant.data.ingredients.join(', ');
+          return IngredientProcessor.processVariantIngredients(createdVariant.id, ingredientText);
+        }
+        return null;
+      });
+
+      const ingredientResults = await Promise.all(ingredientProcessingPromises);
+      const successfulProcessings = ingredientResults.filter(result => result && result.success).length;
+      
+      if (successfulProcessings > 0) {
+        console.log(`Successfully processed ingredients for ${successfulProcessings} variants`);
       }
 
       // Create product model categories
