@@ -355,25 +355,6 @@ export const EnhancedVariantOptionsTab = ({ formState, updateFormState, onComple
     }
   };
 
-  const handleOptionsExtracted = (options: any[]) => {
-    // Convert parsed options to the format expected by the form
-    const selectedOptionTypes = options.map((option, index) => ({
-      id: Date.now() + index, // Generate temporary ID
-      name: option.name,
-      label: option.displayName,
-      data_type: 'select',
-      selectedValues: option.values
-    }));
-    
-    updateFormState({ selectedOptionTypes });
-    toast({
-      title: "Success",
-      description: "Options extracted and applied to the form! Moving to step 3..."
-    });
-    
-    // Mark step 2 as completed and advance to step 3
-    onComplete();
-  };
 
   return (
     <div className="space-y-6">
@@ -713,7 +694,11 @@ export const EnhancedVariantOptionsTab = ({ formState, updateFormState, onComple
         </TabsContent>
 
         <TabsContent value="parser" className="space-y-6">
-          <AmazonHtmlParser onOptionsExtracted={handleOptionsExtracted} />
+          <AmazonHtmlParser 
+            formState={formState}
+            updateFormState={updateFormState}
+            onComplete={onComplete}
+          />
         </TabsContent>
       </Tabs>
     </div>

@@ -99,35 +99,87 @@ export const AmazonReviewCreate = ({ formState, updateFormState, onComplete }: A
         throw new Error('Brand and product line must be set up in step 1 before creating products');
       }
 
+      // Validate that the product model exists
+      console.log('Validating product model ID:', formState.productLineId);
+      const { data: modelData, error: modelError } = await supabase
+        .from('product_models')
+        .select('id, name, brand_id')
+        .eq('id', formState.productLineId)
+        .single();
+
+      if (modelError || !modelData) {
+        console.error('Product model validation error:', modelError);
+        throw new Error(`Product model with ID ${formState.productLineId} not found. Please ensure step 1 was completed correctly.`);
+      }
+
+      console.log('Product model validated:', modelData);
+
       // Create variants
       for (const variant of formState.configuredVariants) {
+        console.log('Creating variant:', variant.customName || variant.name);
+        
+        // Validate form_factor against allowed values
+        const allowedFormFactors = [
+          'dry kibble', 'wet pâté', 'wet chunks', 'wet shreds', 'wet stew',
+          'freeze-dried', 'dehydrated', 'raw frozen', 'semi-moist', 'treats', 'topper'
+        ];
+        const formFactor = variant.formFactor || 'dry kibble';
+        if (!allowedFormFactors.includes(formFactor)) {
+          throw new Error(`Invalid form factor: ${formFactor}. Allowed values: ${allowedFormFactors.join(', ')}`);
+        }
+
+        // Validate package_size_unit against allowed values
+        const allowedPackageUnits = ['oz', 'lb', 'kg', 'g', 'ml', 'l', 'cup', 'can', 'pouch'];
+        const packageSizeUnit = variant.packageSizeUnit || 'lb';
+        if (!allowedPackageUnits.includes(packageSizeUnit)) {
+          throw new Error(`Invalid package size unit: ${packageSizeUnit}. Allowed values: ${allowedPackageUnits.join(', ')}`);
+        }
+
+        // Validate stock_status against allowed values
+        const allowedStockStatuses = ['in_stock', 'out_of_stock', 'discontinued', 'unknown', 'limited'];
+        const stockStatus = variant.stockStatus || 'unknown';
+        if (!allowedStockStatuses.includes(stockStatus)) {
+          throw new Error(`Invalid stock status: ${stockStatus}. Allowed values: ${allowedStockStatuses.join(', ')}`);
+        }
+
+        const variantData = {
+          model_id: formState.productLineId,
+          variant_name_suffix: variant.customName || variant.name,
+          image_url: variant.imageUrl || null,
+          form_factor: formFactor,
+          package_size_value: parseFloat(variant.packageSize || '1'),
+          package_size_unit: packageSizeUnit,
+          ingredient_list_text: variant.ingredients || 'Ingredients not specified',
+          price: variant.price || null,
+          cost: variant.cost || null,
+          stock_status: stockStatus,
+          average_rating: variant.averageRating || null,
+          review_count: variant.reviewCount || 0,
+          created_by: 'amazon_flow',
+          data_confidence: 80
+        };
+        
+        console.log('Variant data to insert:', variantData);
+        
         const { data: productVariant, error: variantError } = await supabase
           .from('product_variants')
-          .insert({
-            model_id: formState.productLineId,
-            variant_name_suffix: variant.customName || variant.name,
-            image_url: variant.imageUrl || null,
-            form_factor: variant.formFactor || 'dry kibble',
-            package_size_value: parseFloat(variant.packageSize || '1'),
-            package_size_unit: variant.packageSizeUnit || 'lb',
-            ingredient_list_text: variant.ingredients || 'Ingredients not specified',
-            price: variant.price || null,
-            cost: variant.cost || null,
-            stock_status: variant.stockStatus || 'unknown',
-            average_rating: variant.averageRating || null,
-            review_count: variant.reviewCount || 0,
-            created_by: 'amazon_flow',
-            data_confidence: 80
-          })
+          .insert(variantData)
           .select('id')
           .single();
 
-        if (variantError) throw variantError;
+        if (variantError) {
+          console.error('Variant creation error:', variantError);
+          throw variantError;
+        }
+        
+        console.log('Variant created successfully with ID:', productVariant.id);
 
         // Create identifiers
         for (const identifier of variant.identifiers || []) {
           if (identifier.type && identifier.value) {
-            await supabase
+            console.log('Creating identifier:', identifier.type, identifier.value);
+            
+            const { error: identifierError } = await supabase
               .from('barcodes')
               .insert({
                 variant_id: productVariant.id,
@@ -137,6 +189,13 @@ export const AmazonReviewCreate = ({ formState, updateFormState, onComplete }: A
                 is_verified: false,
                 is_active: true
               });
+              
+            if (identifierError) {
+              console.error('Identifier creation error:', identifierError);
+              throw identifierError;
+            }
+            
+            console.log('Identifier created successfully');
           }
         }
 
@@ -147,10 +206,28 @@ export const AmazonReviewCreate = ({ formState, updateFormState, onComplete }: A
       
     } catch (error) {
       console.error('Error creating product:', error);
+      
+      // Extract meaningful error message
+      let errorMessage = "Failed to create product. Please try again.";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (error && typeof error === 'object') {
+        // Handle Supabase errors
+        if ('message' in error) {
+          errorMessage = String(error.message);
+        } else if ('error' in error && typeof error.error === 'object' && 'message' in error.error) {
+          errorMessage = String(error.error.message);
+        } else {
+          // Log the full error object for debugging
+          console.error('Full error object:', JSON.stringify(error, null, 2));
+          errorMessage = "Database error occurred. Check console for details.";
+        }
+      }
+      
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to create product. Please try again."
+        description: errorMessage
       });
     } finally {
       setIsCreating(false);
