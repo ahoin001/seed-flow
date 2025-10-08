@@ -165,16 +165,45 @@ export const AmazonVariantConfigurator = ({ formState, updateFormState, onComple
     if (value === 'custom') {
       setShowCustomFormFactor(true);
     } else {
-      updateVariant(variantId, 'formFactor', value);
-      setShowCustomFormFactor(false);
+      // Validate that the form factor is one of the allowed database values
+      const allowedFormFactors = [
+        'dry kibble', 'wet pâté', 'wet chunks', 'wet shreds', 'wet stew',
+        'freeze-dried', 'dehydrated', 'raw frozen', 'semi-moist', 'treats', 'topper'
+      ];
+      
+      if (allowedFormFactors.includes(value)) {
+        updateVariant(variantId, 'formFactor', value);
+        setShowCustomFormFactor(false);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Invalid Form Factor",
+          description: "Please select a valid form factor from the list."
+        });
+      }
     }
   };
 
   const handleCustomFormFactorSubmit = (variantId: string) => {
     if (customFormFactor.trim()) {
-      updateVariant(variantId, 'formFactor', customFormFactor.trim());
-      setCustomFormFactor('');
-      setShowCustomFormFactor(false);
+      const trimmedValue = customFormFactor.trim();
+      // Validate that the custom form factor is one of the allowed database values
+      const allowedFormFactors = [
+        'dry kibble', 'wet pâté', 'wet chunks', 'wet shreds', 'wet stew',
+        'freeze-dried', 'dehydrated', 'raw frozen', 'semi-moist', 'treats', 'topper'
+      ];
+      
+      if (allowedFormFactors.includes(trimmedValue)) {
+        updateVariant(variantId, 'formFactor', trimmedValue);
+        setCustomFormFactor('');
+        setShowCustomFormFactor(false);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Invalid Form Factor",
+          description: "Custom form factor must be one of the allowed values. Please select from the dropdown instead."
+        });
+      }
     }
   };
 
@@ -358,10 +387,17 @@ export const AmazonVariantConfigurator = ({ formState, updateFormState, onComple
                       <SelectValue placeholder="Select form factor" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="dry">Dry</SelectItem>
-                      <SelectItem value="wet">Wet</SelectItem>
-                      <SelectItem value="treat">Treat</SelectItem>
-                      <SelectItem value="supplement">Supplement</SelectItem>
+                      <SelectItem value="dry kibble">Dry Kibble</SelectItem>
+                      <SelectItem value="wet pâté">Wet Pâté</SelectItem>
+                      <SelectItem value="wet chunks">Wet Chunks</SelectItem>
+                      <SelectItem value="wet shreds">Wet Shreds</SelectItem>
+                      <SelectItem value="wet stew">Wet Stew</SelectItem>
+                      <SelectItem value="freeze-dried">Freeze-Dried</SelectItem>
+                      <SelectItem value="dehydrated">Dehydrated</SelectItem>
+                      <SelectItem value="raw frozen">Raw Frozen</SelectItem>
+                      <SelectItem value="semi-moist">Semi-Moist</SelectItem>
+                      <SelectItem value="treats">Treats</SelectItem>
+                      <SelectItem value="topper">Topper</SelectItem>
                       <SelectItem value="custom">+ Create Custom</SelectItem>
                     </SelectContent>
                   </Select>

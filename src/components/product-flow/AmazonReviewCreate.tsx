@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CheckCircle, Package, Image, Tag, List, Globe, Edit, Save, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { IngredientProcessor } from "@/lib/ingredientProcessor";
 
 interface AmazonReviewCreateProps {
   formState: any;
@@ -199,7 +200,21 @@ export const AmazonReviewCreate = ({ formState, updateFormState, onComplete }: A
           }
         }
 
-        // Ingredients are already stored in ingredient_list_text field above
+        // Process ingredients and create ingredient-variant relationships
+        if (variant.ingredients && variant.ingredients.trim()) {
+          try {
+            const ingredientResult = await IngredientProcessor.processVariantIngredients(
+              productVariant.id,
+              variant.ingredients
+            );
+            
+            if (!ingredientResult.success) {
+              console.warn(`Ingredient processing failed for variant ${productVariant.id}:`, ingredientResult.errors);
+            }
+          } catch (error) {
+            console.error('Error processing ingredients:', error);
+          }
+        }
       }
 
       onComplete();
